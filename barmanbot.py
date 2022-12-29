@@ -1,0 +1,44 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+"""Awesome Discord Bot."""
+import os
+
+import discord
+from discord.ext import commands
+from dotenv import load_dotenv
+
+import cogs
+
+# Parse a .env file and then load all the variables found as environment variables.
+load_dotenv()
+token = os.getenv("DISCORD_TOKEN")
+# Done
+
+
+# parameters for the bot
+intents = discord.Intents.default()
+intents.members = True
+intents.message_content = True
+
+bot = commands.Bot(command_prefix="$", help_command=None,
+                   description=None, case_insensitive=True, intents=intents)
+
+cogs_list = [
+    cogs.Misc,
+    ]
+
+
+@bot.event
+async def on_ready():
+    """Log in Discord."""
+    print('Logged in as')
+    print(bot.user.name)
+    print(bot.user.id)
+    print('------')
+    for cog in cogs_list:
+        await bot.add_cog(cog(bot))
+    await bot.tree.sync()
+
+
+if __name__ == "__main__":
+    bot.run(token)
