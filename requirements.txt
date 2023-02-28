@@ -1,6 +1,5 @@
-discord.py>=2.0.0,<3
-python-dotenv==0.21.0
+discord.py>=2.2.0,<3
+python-dotenv>=1.*.*
 bs4
-reretry
 pdfkit
 aiohttp

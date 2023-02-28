@@ -8,7 +8,7 @@ import discord
 import pdfkit
 from bs4 import BeautifulSoup
 from discord.ext import commands
-from reretry import retry
+# from reretry import retry
 
 login_url = "https://secure.lemonde.fr/sfuser/connexion"
 options = {
@@ -18,14 +18,6 @@ options = {
     'margin-bottom': '20mm',
     'margin-left': '20mm',
     'encoding': "UTF-8",
-    # 'custom-header': [
-    #     ('Accept-Encoding', 'gzip')
-    # ],
-    # 'cookie': [
-    #     ('cookie-empty-value', '""')
-    #     ('cookie-name1', 'cookie-value1'),
-    #     ('cookie-name2', 'cookie-value2'),
-    # ],
     'no-outline': None
 }
 headers = {
@@ -33,21 +25,41 @@ headers = {
     }
 
 
-def select_tag(soup: BeautifulSoup, tag) -> dict:
+# Retry
+tries = 10
+delay = 2
+max_delay = None
+backoff = 1.2
+# jitter = 0
+jitter = (0, 1)
+
+
+def _new_delay(max_delay, backoff, jitter, delay):
+    delay *= backoff
+    delay += random.uniform(*jitter) if isinstance(jitter, tuple) else jitter
+
+    if max_delay is not None:
+        delay = min(delay, max_delay)
+
+    return delay
+
+
+def select_tag(soup: BeautifulSoup, selector: str) -> dict:
     """Select tag in soup and return dict (name:value)."""
-    items = soup.select(tag)
+    items = soup.select(selector)
     return {i['name']: i['value'] for i in items if i.has_attr('name') if i.has_attr('value')}
 
 
-def remove_bloasts(article: BeautifulSoup) -> BeautifulSoup:
+def remove_bloasts(article: BeautifulSoup):
     "Remove some bloats in the article soup."
     css = [
         ".meta__social",
         "ul.breadcrumb",
+        ".article__siblings",
         "#habillagepub > section > section.article__wrapper.article__wrapper--premium > article > section.article__reactions",
         "section.friend",
         "aside.aside__iso.old__aside",
-        "section.article__siblings",
+        # "#habillagepub > section > section.article__wrapper.article__wrapper--premium > footer > section:nth-child(3)",
     ]
     for c in css:
         try:
@@ -56,9 +68,16 @@ def remove_bloasts(article: BeautifulSoup) -> BeautifulSoup:
             print(f"Fails to remove {c} bloat in the article. Pass.")
 
 
-@retry(asyncio.exceptions.TimeoutError, tries=10, delay=2, backoff=1.2, jitter=(0, 1))
-async def get_article(url: str):
-    "Get the article from the URL"
+# @retry(asyncio.exceptions.TimeoutError, tries=10, delay=2, backoff=1.2, jitter=(0, 1))
+async def get_article(url: str) -> str:
+    """Get the article from the URL
+
+    Args:
+        url (str): url of article to be fetched
+
+    Returns:
+        str: path to the PDF file
+    """
     session = aiohttp.ClientSession()
     # Login
     r = await session.get(login_url)
@@ -76,7 +95,7 @@ async def get_article(url: str):
     html = None
     # Fetch article and print in PDF
     try:
-        r = await session.get(url, headers=headers, timeout=5)
+        r = await session.get(url, headers=headers, timeout=6)
         print(r.status)
         html = await r.text()
         print("Get was ok")
@@ -94,6 +113,7 @@ async def get_article(url: str):
         # article = soup.select_one(".zone.zone--article")
         # print(soup.prettify())
         remove_bloasts(article)
+        # print(article.prettify())
         full_name = url.rsplit('/', 1)[-1]
         out_file = f"{os.path.splitext(full_name)[0]}.pdf"
         pdfkit.from_string(str(article), out_file, options=options)
@@ -104,6 +124,7 @@ async def get_article(url: str):
 
 class LeMonde(commands.Cog):
     """LeMonde commands"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -111,11 +132,40 @@ class LeMonde(commands.Cog):
     # @commands.command()
     async def lemonde(self, ctx: commands.Context, url: str):
         "Download an article from Lemonde.fr"
+
+        # Retry
+        _tries, _delay = tries, delay
+
         await ctx.defer(ephemeral=False)
-        # async with ctx.channel.typing():
+
+        # While loop to retry fetching article, in case of Timeout errors
+        while _tries:
+            try:
+                out_file = await get_article(url)
+                print("out file ok")
+                break
+            except asyncio.exceptions.TimeoutError as e:
+                print("Timeout in retry code !!!", e)
+                _tries -= 1
+                print(f"Tries left = {_tries}")
+
+                error_message = ("Erreur : Timeout. "
+                                 f"Tentative {tries - _tries}/{tries} échec - "
+                                 f"Nouvel essai dans {_delay:.2f} secondes...")
+                delete_after = _delay + 1.9
+                await ctx.channel.send(error_message, delete_after=delete_after)
+                if not _tries:
+                    raise
+
+                await asyncio.sleep(_delay)
+
+                _delay = _new_delay(max_delay, backoff, jitter, _delay)
+        # End of retry While loop
+
         try:
-            out_file = await get_article(url)
             await ctx.send(file=discord.File(out_file))
             os.remove(out_file)
         except TypeError:
-            await ctx.send("no file to send, sorry, try again maybe ?")
+            await ctx.send("Echec de la commande. Réessayez, peut-être ?")
+        finally:
+            print("------------------")
