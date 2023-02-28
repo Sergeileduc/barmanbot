@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """Awesome Discord Bot."""
+import asyncio
 import os
+import platform
 
 import discord
 from discord.ext import commands
@@ -20,11 +22,12 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix="$", help_command=None,
+bot = commands.Bot(command_prefix="!", help_command=None,
                    description=None, case_insensitive=True, intents=intents)
 
 cogs_list = [
     cogs.Misc,
+    cogs.LeMonde,
     ]
 
 
@@ -37,8 +40,10 @@ async def on_ready():
     print('------')
     for cog in cogs_list:
         await bot.add_cog(cog(bot))
-    await bot.tree.sync()
+    # await bot.tree.sync()
 
 
 if __name__ == "__main__":
+    if platform.system() == 'Windows':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     bot.run(token)

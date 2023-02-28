@@ -14,3 +14,10 @@ class Misc(commands.Cog):
     async def ping(self, ctx: commands.Context):
         "Ping the bot."
         await ctx.send("Ping ! Pang ! Pong !")
+
+    @commands.hybrid_command()
+    @commands.has_any_role("modo")
+    async def sync(self, ctx: commands.Context):
+        """Sync the / commands on discord."""
+        await self.bot.tree.sync()
+        await ctx.send("Sync OK")
