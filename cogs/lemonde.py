@@ -1,5 +1,6 @@
 """Lemonde -> PDF cog."""
 import asyncio
+import logging
 import os
 import random
 
@@ -10,6 +11,10 @@ from bs4 import BeautifulSoup
 from discord.ext import commands
 # from reretry import retry
 
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.INFO)
+# logger.addHandler(logging.StreamHandler())
+
 login_url = "https://secure.lemonde.fr/sfuser/connexion"
 options = {
     'page-size': 'A4',
@@ -18,10 +23,15 @@ options = {
     'margin-bottom': '20mm',
     'margin-left': '20mm',
     'encoding': "UTF-8",
-    'no-outline': None
-}
+    'no-outline': None,
+    'custom-header': [
+        ('Accept-Encoding', 'gzip')
+    ],
+    "enable-local-file-access": "",
+    }
+
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
     }
 
 
@@ -55,17 +65,32 @@ def remove_bloasts(article: BeautifulSoup):
     css = [
         ".meta__social",
         "ul.breadcrumb",
-        ".article__siblings",
-        "#habillagepub > section > section.article__wrapper.article__wrapper--premium > article > section.article__reactions",
+        "section.article__reactions",
         "section.friend",
+        "section.article__siblings",
         "aside.aside__iso.old__aside",
-        # "#habillagepub > section > section.article__wrapper.article__wrapper--premium > footer > section:nth-child(3)",
+        "section.inread",
     ]
     for c in css:
         try:
-            article.select_one(c).decompose()  # remove some bloats
+            list_elements = article.select(c)
+            for elem in list_elements:
+                elem.decompose()  # remove some bloats
+                logger.debug("Element %s decomposed", c)
         except AttributeError:
-            print(f"Fails to remove {c} bloat in the article. Pass.")
+            logger.info("FAILS to remove %s bloat in the article. Pass.", c)
+
+
+def fix_images_urls(article: BeautifulSoup):
+    imgs = article.select("img")
+    for im in imgs:
+        if im.has_attr("data-srcset"):
+            srcset = im["data-srcset"]
+            tmpsrc = srcset.split(",")
+            for tmp in tmpsrc:
+                if "664w" in tmp or "1x" in tmp:
+                    url_im = tmp.strip().split(" ")[0]
+                    im["src"] = url_im
 
 
 # @retry(asyncio.exceptions.TimeoutError, tries=10, delay=2, backoff=1.2, jitter=(0, 1))
@@ -89,35 +114,36 @@ async def get_article(url: str) -> str:
     payload['password'] = os.getenv("LEMONDE_PASSWD")
     rp = await session.post(post_url, data=payload)
     if rp.status == 200:
-        print("Login OK")
+        logger.info("Login OK")
     await asyncio.sleep(random.uniform(2.0, 3.0))
 
     html = None
     # Fetch article and print in PDF
     try:
         r = await session.get(url, headers=headers, timeout=6)
-        print(r.status)
+        logger.info("status : %s", r.status)
         html = await r.text()
-        print("Get was ok")
+        logger.info("Get was ok")
     except asyncio.exceptions.TimeoutError:
-        print("Timeout !")
+        logger.warning("Timeout !")
         raise
     finally:
         await session.close()
 
     if html:
-        print("Ok, making the PDF now")
+        logger.info("Ok, doing some magic on HTML")
         soup = BeautifulSoup(html, 'html.parser')
         article = soup.select_one("main > .article--content")
         # article = soup.select_one("section.zone--article")
         # article = soup.select_one(".zone.zone--article")
-        # print(soup.prettify())
         remove_bloasts(article)
+        fix_images_urls(article)
         # print(article.prettify())
         full_name = url.rsplit('/', 1)[-1]
         out_file = f"{os.path.splitext(full_name)[0]}.pdf"
+        logger.info("Ok, making the pdf now.")
         pdfkit.from_string(str(article), out_file, options=options)
-        print("Returning file")
+        logger.info("Returning file")
         return out_file
     return None
 
@@ -142,12 +168,12 @@ class LeMonde(commands.Cog):
         while _tries:
             try:
                 out_file = await get_article(url)
-                print("out file ok")
+                logger.info("out file ok")
                 break
-            except asyncio.exceptions.TimeoutError as e:
-                print("Timeout in retry code !!!", e)
+            except asyncio.exceptions.TimeoutError:
+                logger.warning("Timeout in retry code !!!")
                 _tries -= 1
-                print(f"Tries left = {_tries}")
+                logger.warning("Tries left = %d", _tries)
 
                 error_message = ("Erreur : Timeout. "
                                  f"Tentative {tries - _tries}/{tries} échec - "
@@ -168,4 +194,4 @@ class LeMonde(commands.Cog):
         except TypeError:
             await ctx.send("Echec de la commande. Réessayez, peut-être ?")
         finally:
-            print("------------------")
+            logger.info("------------------")

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """Awesome Discord Bot."""
 import asyncio
+import logging
 import os
 import platform
 
@@ -10,6 +11,10 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 import cogs
+
+# Logging
+logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
 
 # Parse a .env file and then load all the variables found as environment variables.
 load_dotenv()
@@ -34,10 +39,10 @@ cogs_list = [
 @bot.event
 async def on_ready():
     """Log in Discord."""
-    print('Logged in as')
-    print(bot.user.name)
-    print(bot.user.id)
-    print('------')
+    logging.info('Logged in as')
+    logging.info(bot.user.name)
+    logging.info(bot.user.id)
+    logging.info('------')
     for cog in cogs_list:
         await bot.add_cog(cog(bot))
     # await bot.tree.sync()
