@@ -195,3 +195,8 @@ class LeMonde(commands.Cog):
             await ctx.send("Echec de la commande. Réessayez, peut-être ?")
         finally:
             logger.info("------------------")
+
+
+async def setup(bot):
+    await bot.add_cog(LeMonde(bot))
+    logger.info("lemonde cog added")

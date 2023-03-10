@@ -2,7 +2,11 @@
 # -*- coding: utf-8 -*-
 """Miscs cog."""
 
+import logging
+
 from discord.ext import commands
+
+logger = logging.getLogger(__name__)
 
 
 class Misc(commands.Cog):
@@ -21,3 +25,8 @@ class Misc(commands.Cog):
         """Sync the / commands on discord."""
         await self.bot.tree.sync()
         await ctx.send("Sync OK")
+
+
+async def setup(bot):
+    await bot.add_cog(Misc(bot))
+    logger.info("Misc cog added")
