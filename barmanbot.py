@@ -59,7 +59,7 @@ async def setup_hook():
     anything that waits for the websocket will deadlock, this includes things
     like :meth:`wait_for` and :meth:`wait_until_ready`.
     """
-    print("Setup_hook !!!")
+    logging.info("Setup_hook !!!")
     for ext in cogs_ext_list:
         await bot.load_extension(ext)
 
