@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class Misc(commands.Cog):
     """My first cog, for holding commands !"""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -25,6 +26,7 @@ class Misc(commands.Cog):
         """Sync the / commands on discord."""
         await self.bot.tree.sync()
         await ctx.send("Sync OK")
+        logger.info("Sync ok !")
 
 
 async def setup(bot):

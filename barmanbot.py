@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """Awesome Discord Bot."""
+import argparse
 import asyncio
 import logging
 import os
@@ -16,8 +17,20 @@ logging.basicConfig(level=logging.INFO)
 
 # Parse a .env file and then load all the variables found as environment variables.
 load_dotenv()
-TOKEN = os.getenv("DISCORD_TOKEN")
+TOKEN = os.getenv("BARMAN_DISCORD_TOKEN")
 # Done
+
+PREFIX = '!'
+
+# --debug option
+parser = argparse.ArgumentParser()
+parser.add_argument("-d", "--debug",
+                    help="change prefix to '?'", action="store_true")
+args = parser.parse_args()
+if args.debug:
+    logging.info("You are in debug mode.")
+    logging.info("Prefix is now '?'")
+    PREFIX = '?'
 
 
 # parameters for the bot
@@ -25,13 +38,12 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix="!", help_command=None,
+bot = commands.Bot(command_prefix=PREFIX, help_command=None,
                    description=None, case_insensitive=True, intents=intents)
 
-cogs_ext_list = [
-    "cogs.misc",
-    "cogs.lemonde",
-]
+cogs_ext_list = ["cogs.misc",
+                 "cogs.lemonde",
+                 ]
 
 
 @bot.event

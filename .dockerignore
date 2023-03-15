@@ -6,7 +6,7 @@
 **\*.py[cod]
 **\venv
 **\.venv
-.env
+; .env
 **\secret.py
 **\example.py
 **\logs.json
