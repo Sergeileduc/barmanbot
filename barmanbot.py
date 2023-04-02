@@ -20,6 +20,8 @@ load_dotenv()
 TOKEN = os.getenv("BARMAN_DISCORD_TOKEN")
 # Done
 
+logging.basicConfig(level=logging.DEBUG)
+
 PREFIX = '!'
 
 # --debug option
@@ -43,6 +45,7 @@ bot = commands.Bot(command_prefix=PREFIX, help_command=None,
 
 cogs_ext_list = ["cogs.misc",
                  "cogs.lemonde",
+                 "cogs.code",
                  ]
 
 
