@@ -12,14 +12,12 @@ logger = logging.getLogger(__name__)
 
 
 class CodeModal(ui.Modal, title="My code modal"):
-    answer = ui.TextInput(label="Entrez votre code", required=True)
+    answer = ui.TextInput(label="Entrez votre code",
+                          required=True, style=discord.TextStyle.long)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        # return await super().on_submit(interaction)
-        embed = discord.Embed(title=self.title,
-                              description=f"**{self.answer.label}\n**{self.answer}")
-        embed.set_author(name=interaction.user, icon=interaction.user.avatar)
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(
+            content=f"# Code {self.lang} :\n```{self.lang}\n{self.answer}```")
 
 
 class Code(commands.Cog):
@@ -32,14 +30,16 @@ class Code(commands.Cog):
     @app_commands.choices(choices=[
         app_commands.Choice(name="Python", value="python"),
         app_commands.Choice(name="html", value="html"),
+        app_commands.Choice(name="css", value="css"),
         app_commands.Choice(name="json", value="json"),
         ])
     async def code(self,
-                   i: discord.Interaction,
+                   interaction: discord.Interaction,
                    choices: app_commands.Choice[str],
                    ):
-        print(choices.value)
-        await i.response.send_modal(CodeModal())
+        codemodal = CodeModal(title="Entrez votre code")
+        codemodal.lang = choices.value
+        await interaction.response.send_modal(codemodal)
 
 
 async def setup(bot):

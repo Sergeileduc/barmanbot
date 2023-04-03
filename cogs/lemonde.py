@@ -7,7 +7,7 @@ import random
 import aiohttp
 import discord
 import pdfkit
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from discord.ext import commands
 # from reretry import retry
 
@@ -60,7 +60,7 @@ def select_tag(soup: BeautifulSoup, selector: str) -> dict:
     return {i['name']: i['value'] for i in items if i.has_attr('name') if i.has_attr('value')}
 
 
-def remove_bloasts(article: BeautifulSoup):
+def remove_bloasts(article: Tag):
     "Remove some bloats in the article soup."
     css = [
         ".meta__social",
