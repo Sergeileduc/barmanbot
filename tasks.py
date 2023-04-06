@@ -1,3 +1,4 @@
+import contextlib
 import os
 import shutil
 import subprocess
@@ -41,14 +42,12 @@ def get_platform():
 def get_index_path():
     """Get full path for ./htmlcov/index.html file."""
     platform = get_platform()
-    if platform == "wsl":
-        # TODO: this part with .strip().replace() is ugly...
-        process = subprocess.run(['wslpath', '-w', '.'], capture_output=True, text=True)
-        pathstr = process.stdout.strip().replace('\\', '/')
-        path = Path(pathstr) / 'htmlcov/index.html'
-    else:
-        path = Path('.').resolve() / 'htmlcov' / 'index.html'
-    return path
+    if platform != "wsl":
+        return Path('.').resolve() / 'htmlcov' / 'index.html'
+    # TODO: this part with .strip().replace() is ugly...
+    process = subprocess.run(['wslpath', '-w', '.'], capture_output=True, text=True)
+    pathstr = process.stdout.strip().replace('\\', '/')
+    return Path(pathstr) / 'htmlcov/index.html'
 
 
 # TASKS------------------------------------------------------------------------
@@ -65,28 +64,22 @@ def cleantest(c):
     # Find .pyc or .pyo files and delete them
     # exclude = ('venv', '.venv')
     p = Path('.')
-    # genpyc = (i for i in p.glob('**/*.pyc') if not str(i.parent).startswith(exclude))
-    # genpyo = (i for i in p.glob('**/*.pyo') if not str(i.parent).startswith(exclude))
-    genpyc = (i for i in p.glob('**/*.pyc'))
-    genpyo = (i for i in p.glob('**/*.pyo'))
-    artifacts = chain(genpyc, genpyo)
+    artifacts = p.glob('**/*.py[co]')
     for art in artifacts:
-        os.remove(art)
+        art.unlink()
 
     # Delete caches folders
-    cache1 = (i for i in p.glob('**/__pycache__'))
-    cache2 = (i for i in p.glob('**/.pytest_cache'))
-    cache3 = (i for i in p.glob('**/.mypy_cache'))
+    cache1 = iter(p.glob('**/__pycache__'))
+    cache2 = iter(p.glob('**/.pytest_cache'))
+    cache3 = iter(p.glob('**/.mypy_cache'))
     caches = chain(cache1, cache2, cache3)
     for cache in caches:
         shutil.rmtree(cache)
 
     # Delete coverage artifacts
-    try:
+    with contextlib.suppress(FileNotFoundError):
         os.remove('.coverage')
         shutil.rmtree('htmlcov')
-    except FileNotFoundError:
-        pass
 
 
 @task
@@ -106,7 +99,6 @@ def cleanbuild(c):
 def clean(c):
     """Equivalent to both cleanbuild and cleantest..."""
     print("CLEANING")
-    pass
 
 
 @task
