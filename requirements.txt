@@ -3,3 +3,4 @@ python-dotenv>=1.*.*
 bs4
 pdfkit
 aiohttp
+google-api-python-client

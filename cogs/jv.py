@@ -8,6 +8,7 @@ import aiohttp
 import logging
 
 from bs4 import BeautifulSoup
+from discord import Embed
 from discord.ext import commands
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ headers = {
     }
 
 
-def generate_url(month: int, year: int) -> str:
+def generate_url(month: int, year: int):
     """generate JV url
 
     Args:
@@ -30,7 +31,9 @@ def generate_url(month: int, year: int) -> str:
     french_months = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin',
                      'juillet', 'aout',
                      'septembre', 'octobre', 'novembre', 'decembre']
-    return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-{french_months[month - 1]}-{year}-date.htm"
+    french_m = french_months[month - 1]
+    url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-{french_m}-{year}-date.htm"
+    return url, french_m, year
 
 
 class JV(commands.Cog):
@@ -47,13 +50,13 @@ class JV(commands.Cog):
             month (int): mois
             year (int): année
         """
-        url = generate_url(month, year)
+        url, month, year = generate_url(month, year)
         async with aiohttp.ClientSession() as session:
             res = await session.get(url, headers=headers)
             soup = BeautifulSoup(await res.text(), "html.parser")
         list_of_new_games = soup.select("div[class*='gameMetadatas']")
 
-        content = ""
+        embed = Embed(title=f"Sorties du mois {month} {year}")
         for sortie in list_of_new_games:
             title = sortie.select_one("a[class*='gameTitleLink']").text
             date = sortie.select_one("span[class*='releaseDate']").text
@@ -62,11 +65,8 @@ class JV(commands.Cog):
                 platform = f"Plateformes :\t {tmp}"
             except AttributeError:
                 platform = "no platform"
-            content += title + "\n"
-            content += date + "\n"
-            content += platform + "\n"
-            content += "_____________\n"
-        await ctx.send(content=content)
+            embed.add_field(name=title, value=f"{date} \n {platform}", inline=False)
+        await ctx.send(embed=embed)
 
 
 async def setup(bot):
