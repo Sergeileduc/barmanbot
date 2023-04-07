@@ -21,7 +21,7 @@ class Misc(commands.Cog):
         await ctx.send("Ping ! Pang ! Pong !")
 
     @commands.hybrid_command()
-    @commands.has_any_role("modo")
+    @commands.has_any_role("modo", "Admin")
     async def sync(self, ctx: commands.Context):
         """Sync the / commands on discord."""
         # await ctx.defer(ephemeral=False)
