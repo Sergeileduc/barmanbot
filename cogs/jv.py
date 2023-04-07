@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """JV cog."""
+from urllib.parse import urljoin
 
 import aiohttp
 
@@ -65,7 +66,12 @@ class JV(commands.Cog):
                 platform = f"Plateformes :\t {tmp}"
             except AttributeError:
                 platform = "no platform"
-            embed.add_field(name=title, value=f"{date} \n {platform}", inline=False)
+            try:
+                part = sortie.select_one("div > span > h2 > a").get("href")
+                url = urljoin("https://www.jeuxvideo.com", part)
+            except AttributeError:
+                url = None
+            embed.add_field(name=title, value=f"{date}\n{platform}\n{url}", inline=False)
         await ctx.send(embed=embed)
 
 
