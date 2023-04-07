@@ -44,6 +44,37 @@ class NewGame:
         return f"{self.name}\n{self.release}\n{self.platforms}\n{self.url}\n{self.date}\n----------"
 
 
+class TimeButton(Button):
+    """Class for the buttons 'Jour', 'Semaine', 'Mois'
+    """
+
+    def __init__(self, label: str, row: int,
+                 delta: timedelta, embedtitle: str, platform: str = None) -> None:
+        """Each button has his own label, row, timedelta and embed title"""
+        super().__init__(label=label, row=row)
+        self.delta = delta
+        self.title = embedtitle
+
+    async def callback(self, interraction: Interaction):
+        platform = self.view.platform
+        embed = Embed(title=self.title)
+        games = await fetch_time_delta(self.delta, platform=platform)
+        for game in games:
+            embed.add_field(name=game.name,
+                            value=f"{game.release}\n{game.platforms}\n{game.url}",
+                            inline=False)
+        await interraction.response.send_message(embed=embed)
+
+
+class PlatformButton(Button):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    async def callback(self, interraction: Interaction):
+        await interraction.response.defer()
+        self.view.platform = self.label
+
+
 def find_next_page(tag: Tag):
     """Find if there is a button "next page".
 
@@ -51,7 +82,7 @@ def find_next_page(tag: Tag):
         tag (Tag): Beautiful Soup Tag
 
     Returns:
-        bool, str: if found, then give the url
+        bool, str: if found, then give the url for next page
     """
     found = False
     url = ""
@@ -61,7 +92,7 @@ def find_next_page(tag: Tag):
     return found, url
 
 
-def generate_url(month: int, year: int):
+def generate_url(month: int, year: int, platform=None):
     """generate JV url
 
     Args:
@@ -75,7 +106,16 @@ def generate_url(month: int, year: int):
                      'juillet', 'aout',
                      'septembre', 'octobre', 'novembre', 'decembre']
     french_m = french_months[month - 1]
-    url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-{french_m}-{year}-date.htm"
+    if platform == "PS5":
+        url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-ps5-playstation-5-{french_m}-{year}-date.htm"
+    elif platform == "XBOX":
+        url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-xbox-series-{french_m}-{year}-date.htm"
+    elif platform == "Switch":
+        url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-switch-nintendo-switch-{french_m}-{year}-date.htm"
+    elif platform == "PC":
+        url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-pc-{french_m}-{year}-date.htm"
+    else:
+        url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-{french_m}-{year}-date.htm"
     return url, french_m, year
 
 
@@ -123,13 +163,13 @@ async def fetch_month(url):
     return games
 
 
-async def fetch_time_delta(delta: timedelta):
+async def fetch_time_delta(delta: timedelta, platform: str = None):
     """Fetch games in a time delta relative to today (one week, one month, etc...)"""
     today = date.today()
     int_month = today.month
     int_year = today.year
 
-    url, _, _ = generate_url(today.month, today.year)
+    url, _, _ = generate_url(today.month, today.year, platform=platform)
     games = await fetch_month(url)
     # next month
     new_month, new_year = next_month(int_month, int_year)
@@ -145,65 +185,34 @@ class JV(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @ commands.hybrid_command()
+    @commands.hybrid_command()
     async def sorties(self, ctx: commands.Context):
-        button1 = Button(label="Jour")
-        button2 = Button(label="Semaine")
-        button3 = Button(label="Mois")
-
-        async def day_callback(interraction: Interaction):
-            embed = Embed(title="Sorties du jour")
-            games = await fetch_time_delta(DAY)
-            for game in games:
-                embed.add_field(name=game.name,
-                                value=f"{game.release}\n{game.platforms}\n{game.url}",
-                                inline=False)
-            await interraction.response.send_message(embed=embed)
-
-        async def week_callback(interraction: Interaction):
-            embed = Embed(title="Sorties de la semaine")
-            games = await fetch_time_delta(WEEK)
-            for game in games:
-                embed.add_field(name=game.name,
-                                value=f"{game.release}\n{game.platforms}\n{game.url}",
-                                inline=False)
-            await interraction.response.send_message(embed=embed)
-
-        async def month_callback(interraction: Interaction):
-            embed = Embed(title="Sorties du mois")
-            games = await fetch_time_delta(MONTH)
-            for game in games:
-                embed.add_field(name=game.name,
-                                value=f"{game.release}\n{game.platforms}\n{game.url}",
-                                inline=False)
-            await interraction.response.send_message(embed=embed)
-
-        button1.callback = day_callback
-        button2.callback = week_callback
-        button3.callback = month_callback
+        """Permet de voir les prochaines sorties."""
+        await ctx.defer(ephemeral=False)
 
         view = View()
+        view.platform = None
+
+        platbutton1 = PlatformButton(label="Toutes", row=0)
+        platbutton2 = PlatformButton(label="PS5", row=0)
+        platbutton3 = PlatformButton(label="Xbox", row=0)
+        platbutton4 = PlatformButton(label="Switch", row=0)
+        platbutton5 = PlatformButton(label="PC", row=0)
+
+        button1 = TimeButton(label="Jour", row=1, delta=DAY, embedtitle="Sorties du jour", platform=view.platform)
+        button2 = TimeButton(label="Semaine", row=1, delta=WEEK, embedtitle="Sorties de la semaine", platform=view.platform)
+        button3 = TimeButton(label="Mois", row=1, delta=MONTH, embedtitle="Sorties du mois", platform=view.platform)
+
+        view.add_item(platbutton1)
+        view.add_item(platbutton2)
+        view.add_item(platbutton3)
+        view.add_item(platbutton4)
+        view.add_item(platbutton5)
         view.add_item(button1)
         view.add_item(button2)
         view.add_item(button3)
+
         await ctx.send(view=view)
-
-    @ commands.hybrid_command()
-    async def sorties2(self, ctx: commands.Context, month: int, year: int):
-        """Sorties JV
-
-        Args:
-            month (int): mois
-            year (int): année
-        """
-        url, month, year = generate_url(month, year)
-        embed = Embed(title=f"Sorties du mois {month} {year}")
-        games = await fetch_month(url)
-        for game in games:
-            embed.add_field(name=game.name,
-                            value=f"{game.release}\n{game.platforms}\n{game.url}",
-                            inline=False)
-        await ctx.send(embed=embed)
 
 
 async def setup(bot):

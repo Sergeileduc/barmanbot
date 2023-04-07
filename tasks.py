@@ -117,3 +117,9 @@ def coverage(c):
     c.run('coverage report -m')
     c.run('coverage html')
     webbrowser.open(path.as_uri())
+
+
+@task(clean)
+def run(c):
+    """Run bot."""
+    c.run('python barmanbot.py')
