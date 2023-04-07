@@ -4,3 +4,4 @@ bs4
 pdfkit
 aiohttp
 google-api-python-client
+dateparser
