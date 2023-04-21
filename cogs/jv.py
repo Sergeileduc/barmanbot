@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """JV cog."""
+
+import contextlib
 import logging
 import re
 from datetime import date, timedelta
@@ -57,7 +59,11 @@ class TimeButton(Button):
 
     async def callback(self, interraction: Interaction):
         platform = self.view.platform
-        embed = Embed(title=self.title)
+        logger.debug("TimeButton callback platform : %s", platform)
+        one_platform = platform != "Toutes"
+        logger.debug("Timebutton callback one_platofm %r", one_platform)
+        full_title = f"{self.title} sur {platform}" if one_platform else self.title
+        embed = Embed(title=full_title)
         games = await fetch_time_delta(self.delta, platform=platform)
         for game in games:
             if game.platforms != "no platform":
@@ -80,11 +86,9 @@ class PlatformButton(Button):
 
 
 def _unbload_title(title: Tag):
-    try:
+    with contextlib.suppress(AttributeError):
         em = title.find("em")
         em.decompose()  # remove some bloats
-    except AttributeError:
-        logger.debug("no bloat em to remove")
 
 
 def find_next_page(tag: Tag):
@@ -118,7 +122,7 @@ def generate_url(month: int, year: int, platform=None) -> str:
                      'juillet', 'aout',
                      'septembre', 'octobre', 'novembre', 'decembre']
     french_m = french_months[month - 1]
-
+    logger.debug(f"generate_url - {platform = }")
     if platform == "PC":
         return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-pc-{french_m}-{year}-date.htm"
     elif platform == "PS5":
@@ -171,7 +175,7 @@ async def fetch_page(url: str):
 
 async def fetch_month(url):
     """Fetch all games in a month, even if there are several pages."""
-    # logger.debug("fetch month url : %s", url)
+    logger.debug("fetch_month url : %s", url)
     pages = True
     games = []
     while pages:
@@ -187,7 +191,7 @@ async def fetch_time_delta(delta: timedelta, platform: str = None):
     int_year = today.year
 
     url = generate_url(today.month, today.year, platform=platform)
-    # logger.debug("time delta url : %s", url)
+    logger.debug("fetch_time_delta url : %s", url)
     games = await fetch_month(url)
     # next month
     new_month, new_year = next_month(int_month, int_year)
@@ -203,10 +207,10 @@ class JV(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.hybrid_command()
+    @ commands.hybrid_command()
     async def sorties(self, ctx: commands.Context):
         """Permet de voir les prochaines sorties."""
-        await ctx.defer(ephemeral=True)
+        await ctx.defer(ephemeral=False)
 
         view = View()
         view.platform = None

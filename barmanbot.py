@@ -11,16 +11,15 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
-# Logging
-# logging.basicConfig(level=logging.INFO)
-logging.basicConfig(level=logging.DEBUG)
 
 # Parse a .env file and then load all the variables found as environment variables.
 load_dotenv()
 TOKEN = os.getenv("BARMAN_DISCORD_TOKEN")
 # Done
 
-logging.basicConfig(level=logging.DEBUG)
+# Logging
+logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
 
 PREFIX = '!'
 
