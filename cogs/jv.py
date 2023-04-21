@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import aiohttp
 from bs4 import BeautifulSoup, Tag
 from dateparser.date import DateDataParser
-from discord import Embed, Interaction
+from discord import Embed, Interaction, ButtonStyle
 from discord.ext import commands
 from discord.ui import Button, View
 
@@ -59,9 +59,12 @@ class TimeButton(Button):
 
     async def callback(self, interraction: Interaction):
         platform = self.view.platform
-        logger.debug("TimeButton callback platform : %s", platform)
         one_platform = platform != "Toutes"
-        logger.debug("Timebutton callback one_platofm %r", one_platform)
+
+        # change style to green when clicked
+        self.style = ButtonStyle.green
+        await interraction.response.edit_message(view=self.view)
+
         full_title = f"{self.title} sur {platform}" if one_platform else self.title
         embed = Embed(title=full_title)
         games = await fetch_time_delta(self.delta, platform=platform)
@@ -73,7 +76,7 @@ class TimeButton(Button):
             embed.add_field(name=game.name,
                             value=value,
                             inline=False)
-        await interraction.response.send_message(embed=embed)
+        await interraction.followup.send(embed=embed)
 
 
 class PlatformButton(Button):
@@ -81,8 +84,11 @@ class PlatformButton(Button):
         super().__init__(*args, **kwargs)
 
     async def callback(self, interraction: Interaction):
-        await interraction.response.defer()
+        # await interraction.response.defer()
         self.view.platform = self.label
+        # change style to green when clicked
+        self.style = ButtonStyle.green
+        await interraction.response.edit_message(view=self.view)
 
 
 def _unbload_title(title: Tag):
