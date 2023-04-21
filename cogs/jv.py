@@ -92,7 +92,7 @@ def find_next_page(tag: Tag):
     return found, url
 
 
-def generate_url(month: int, year: int, platform=None):
+def generate_url(month: int, year: int, platform=None) -> str:
     """generate JV url
 
     Args:
@@ -106,17 +106,16 @@ def generate_url(month: int, year: int, platform=None):
                      'juillet', 'aout',
                      'septembre', 'octobre', 'novembre', 'decembre']
     french_m = french_months[month - 1]
-    if platform == "PS5":
-        url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-ps5-playstation-5-{french_m}-{year}-date.htm"
-    elif platform == "XBOX":
-        url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-xbox-series-{french_m}-{year}-date.htm"
+    if platform == "PC":
+        return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-pc-{french_m}-{year}-date.htm"
+    elif platform == "PS5":
+        return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-ps5-playstation-5-{french_m}-{year}-date.htm"
     elif platform == "Switch":
-        url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-switch-nintendo-switch-{french_m}-{year}-date.htm"
-    elif platform == "PC":
-        url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-pc-{french_m}-{year}-date.htm"
+        return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-switch-nintendo-switch-{french_m}-{year}-date.htm"
+    elif platform == "XBOX":
+        return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-xbox-series-{french_m}-{year}-date.htm"
     else:
-        url = f"https://www.jeuxvideo.com/sorties/dates-de-sortie-{french_m}-{year}-date.htm"
-    return url, french_m, year
+        return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-{french_m}-{year}-date.htm"
 
 
 def next_month(month: int, year: int):
@@ -169,11 +168,11 @@ async def fetch_time_delta(delta: timedelta, platform: str = None):
     int_month = today.month
     int_year = today.year
 
-    url, _, _ = generate_url(today.month, today.year, platform=platform)
+    url = generate_url(today.month, today.year, platform=platform)
     games = await fetch_month(url)
     # next month
     new_month, new_year = next_month(int_month, int_year)
-    url, _, _ = generate_url(new_month, new_year)
+    url = generate_url(new_month, new_year)
     games += await fetch_month(url)
     return [game for game in games
             if (diff := game.date - today) <= delta and diff.days >= 0]
