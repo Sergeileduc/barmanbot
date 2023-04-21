@@ -206,7 +206,7 @@ class JV(commands.Cog):
     @commands.hybrid_command()
     async def sorties(self, ctx: commands.Context):
         """Permet de voir les prochaines sorties."""
-        await ctx.defer(ephemeral=False)
+        await ctx.defer(ephemeral=True)
 
         view = View()
         view.platform = None
