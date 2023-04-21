@@ -123,3 +123,9 @@ def coverage(c):
 def run(c):
     """Run bot."""
     c.run('python barmanbot.py')
+
+
+@task
+def deploy(c):
+    """Deploy bot on fly.io"""
+    c.run('flyctl deploy')

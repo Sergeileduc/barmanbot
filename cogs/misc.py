@@ -24,7 +24,7 @@ class Misc(commands.Cog):
     @commands.has_any_role("modo", "Admin")
     async def sync(self, ctx: commands.Context):
         """Sync the / commands on discord."""
-        # await ctx.defer(ephemeral=False)
+        await ctx.defer(ephemeral=False)
         await self.bot.tree.sync()
         await ctx.send("Sync OK")
         logger.info("Sync ok !")

@@ -49,7 +49,7 @@ class TimeButton(Button):
     """
 
     def __init__(self, label: str, row: int,
-                 delta: timedelta, embedtitle: str, platform: str = None) -> None:
+                 delta: timedelta, embedtitle: str) -> None:
         """Each button has his own label, row, timedelta and embed title"""
         super().__init__(label=label, row=row)
         self.delta = delta
@@ -60,8 +60,12 @@ class TimeButton(Button):
         embed = Embed(title=self.title)
         games = await fetch_time_delta(self.delta, platform=platform)
         for game in games:
+            if game.platforms != "no platform":
+                value = f"{game.release}\n{game.platforms}\n{game.url}"
+            else:
+                value = f"{game.release}\n{game.url}"
             embed.add_field(name=game.name,
-                            value=f"{game.release}\n{game.platforms}\n{game.url}",
+                            value=value,
                             inline=False)
         await interraction.response.send_message(embed=embed)
 
@@ -73,6 +77,14 @@ class PlatformButton(Button):
     async def callback(self, interraction: Interaction):
         await interraction.response.defer()
         self.view.platform = self.label
+
+
+def _unbload_title(title: Tag):
+    try:
+        em = title.find("em")
+        em.decompose()  # remove some bloats
+    except AttributeError:
+        logger.debug("no bloat em to remove")
 
 
 def find_next_page(tag: Tag):
@@ -106,16 +118,19 @@ def generate_url(month: int, year: int, platform=None) -> str:
                      'juillet', 'aout',
                      'septembre', 'octobre', 'novembre', 'decembre']
     french_m = french_months[month - 1]
+
     if platform == "PC":
         return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-pc-{french_m}-{year}-date.htm"
     elif platform == "PS5":
         return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-ps5-playstation-5-{french_m}-{year}-date.htm"
     elif platform == "Switch":
         return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-switch-nintendo-switch-{french_m}-{year}-date.htm"
-    elif platform == "XBOX":
+    elif platform == "Xbox":
         return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-xbox-series-{french_m}-{year}-date.htm"
-    else:
+    elif platform == "Toutes":
         return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-{french_m}-{year}-date.htm"
+    else:
+        return None
 
 
 def next_month(month: int, year: int):
@@ -137,7 +152,9 @@ async def fetch_page(url: str):
 
     releases = []
     for sortie in list_of_new_games:
-        title = sortie.select_one("a[class*='gameTitleLink']").text
+        title_tag = sortie.select_one("a[class*='gameTitleLink']")
+        _unbload_title(title_tag)
+        title = title_tag.text
         date = sortie.select_one("span[class*='releaseDate']").text
         try:
             tmp = sortie.select_one("div[class*='platforms']").text
@@ -154,6 +171,7 @@ async def fetch_page(url: str):
 
 async def fetch_month(url):
     """Fetch all games in a month, even if there are several pages."""
+    # logger.debug("fetch month url : %s", url)
     pages = True
     games = []
     while pages:
@@ -169,10 +187,11 @@ async def fetch_time_delta(delta: timedelta, platform: str = None):
     int_year = today.year
 
     url = generate_url(today.month, today.year, platform=platform)
+    # logger.debug("time delta url : %s", url)
     games = await fetch_month(url)
     # next month
     new_month, new_year = next_month(int_month, int_year)
-    url = generate_url(new_month, new_year)
+    url = generate_url(new_month, new_year, platform=platform)
     games += await fetch_month(url)
     return [game for game in games
             if (diff := game.date - today) <= delta and diff.days >= 0]
@@ -198,9 +217,9 @@ class JV(commands.Cog):
         platbutton4 = PlatformButton(label="Switch", row=0)
         platbutton5 = PlatformButton(label="PC", row=0)
 
-        button1 = TimeButton(label="Jour", row=1, delta=DAY, embedtitle="Sorties du jour", platform=view.platform)
-        button2 = TimeButton(label="Semaine", row=1, delta=WEEK, embedtitle="Sorties de la semaine", platform=view.platform)
-        button3 = TimeButton(label="Mois", row=1, delta=MONTH, embedtitle="Sorties du mois", platform=view.platform)
+        button1 = TimeButton(label="Jour", row=1, delta=DAY, embedtitle="Sorties du jour")
+        button2 = TimeButton(label="Semaine", row=1, delta=WEEK, embedtitle="Sorties de la semaine")
+        button3 = TimeButton(label="Mois", row=1, delta=MONTH, embedtitle="Sorties du mois")
 
         view.add_item(platbutton1)
         view.add_item(platbutton2)
