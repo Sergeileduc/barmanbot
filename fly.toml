@@ -1,9 +1,12 @@
-# fly.toml file generated for barman-bot-sergei on 2023-04-02T11:12:55+02:00
+# fly.toml app configuration file generated for barman-bot-sergei on 2023-05-10T19:07:32+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
 app = "barman-bot-sergei"
-kill_signal = "SIGINT"
-kill_timeout = 5
 primary_region = "cdg"
-processes = []
+kill_signal = "SIGINT"
+kill_timeout = "5s"
 
 [env]
+  PRIMARY_REGION = "cdg"
