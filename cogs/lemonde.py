@@ -12,7 +12,7 @@ from discord.ext import commands
 # from reretry import retry
 
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.INFO)
+logger.setLevel(logging.INFO)
 # logger.addHandler(logging.StreamHandler())
 
 login_url = "https://secure.lemonde.fr/sfuser/connexion"
@@ -103,18 +103,21 @@ async def get_article(url: str) -> str:
     Returns:
         str: path to the PDF file
     """
-    session = aiohttp.ClientSession()
+    session = aiohttp.ClientSession(headers=headers)
     # Login
     r = await session.get(login_url)
     soup = BeautifulSoup(await r.text(), "html.parser")
     form = soup.select_one('form[method="post"]')
     post_url = form.get('action')
     payload = select_tag(form, "input")
-    payload['email'] = os.getenv("LEMONDE_EMAIL")
+    email = os.getenv("LEMONDE_EMAIL")
+    payload['email'] = email
     payload['password'] = os.getenv("LEMONDE_PASSWD")
     rp = await session.post(post_url, data=payload)
-    if rp.status == 200:
-        logger.info("Login OK")
+    if rp.status != 200 or email not in await rp.text():
+        raise ValueError("Wrong login")
+    else:
+        print("Login was ok")
     await asyncio.sleep(random.uniform(2.0, 3.0))
 
     html = None
@@ -191,7 +194,7 @@ class LeMonde(commands.Cog):
         try:
             await ctx.send(file=discord.File(out_file))
             os.remove(out_file)
-        except TypeError:
+        except (TypeError, FileNotFoundError):
             await ctx.send("Echec de la commande. Réessayez, peut-être ?")
         finally:
             logger.info("------------------")
