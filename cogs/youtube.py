@@ -107,10 +107,12 @@ def youtube_top_link(user_input: str) -> TitleURL:
 
     """
     results_list = search_youtube(user_input, number=1)
-    with contextlib.suppress(IndexError):
+    try:
         result: Result = results_list[0]
         url = get_youtube_url(result)
-        return TitleURL(result.title, url)
+        return result.title, url
+    except IndexError:
+        logger.warning(f"No results found for '{user_input}'")
 
 
 def get_youtube_url(result: Result) -> str:
