@@ -91,7 +91,7 @@ class PlatformButton(Button):
         await interraction.response.edit_message(view=self.view)
 
 
-def _unbload_title(title: Tag):
+def _unbloat_title(title: Tag):
     with contextlib.suppress(AttributeError):
         em = title.find("em")
         em.decompose()  # remove some bloats
@@ -163,7 +163,7 @@ async def fetch_page(url: str):
     releases = []
     for sortie in list_of_new_games:
         title_tag = sortie.select_one("a[class*='gameTitleLink']")
-        _unbload_title(title_tag)
+        _unbloat_title(title_tag)
         title = title_tag.text
         date = sortie.select_one("span[class*='releaseDate']").text
         try:
@@ -213,7 +213,7 @@ class JV(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @ commands.hybrid_command()
+    @commands.hybrid_command()
     async def sorties(self, ctx: commands.Context):
         """Permet de voir les prochaines sorties."""
         await ctx.defer(ephemeral=False)

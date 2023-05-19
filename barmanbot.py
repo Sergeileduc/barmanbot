@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 # Parse a .env file and then load all the variables found as environment variables.
 load_dotenv()
-TOKEN = os.getenv("BARMAN_DISCORD_TOKEN")
+TOKEN: str = os.getenv("BARMAN_DISCORD_TOKEN")
 # Done
 
 # Logging
@@ -60,6 +60,7 @@ async def on_ready():
     # await bot.tree.sync()
 
 
+@bot.event
 async def setup_hook():
     """A coroutine to be called to setup the bot.
 
@@ -78,10 +79,6 @@ async def setup_hook():
     logging.info("Setup_hook !!!")
     for ext in cogs_ext_list:
         await bot.load_extension(ext)
-
-
-# Overwrite the empty setup_hook of commands.Bot :
-bot.setup_hook = setup_hook
 
 
 if __name__ == "__main__":

@@ -103,13 +103,14 @@ def youtube_top_link(user_input: str) -> TitleURL:
         user_input (str): user search on Youtube
 
     Returns:
-        tuple: title, url
+        TitleURL: title, url
 
     """
-    result = search_youtube(user_input, number=1)
+    results_list = search_youtube(user_input, number=1)
     with contextlib.suppress(IndexError):
-        url = get_youtube_url(result[0])
-        return result[0].title, url
+        result: Result = results_list[0]
+        url = get_youtube_url(result)
+        return TitleURL(result.title, url)
 
 
 def get_youtube_url(result: Result) -> str:
