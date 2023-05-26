@@ -29,6 +29,12 @@ class Misc(commands.Cog):
         # cms = await self.bot.tree.fetch_commands()
         # print(cms)
 
+    @commands.hybrid_command()
+    @commands.has_any_role("modo", "Admin")
+    async def sing(self, ctx: commands.Context):
+        """Just sing."""
+        await ctx.send("https://media.tenor.com/De6M1HsMZSEAAAAC/mariah-carey.gif")
+
 
 async def setup(bot):
     await bot.add_cog(Misc(bot))
