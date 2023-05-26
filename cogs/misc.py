@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
 """Miscs cog."""
 
 import logging
@@ -17,7 +15,7 @@ class Misc(commands.Cog):
 
     @commands.hybrid_command()
     async def ping(self, ctx: commands.Context):
-        "Ping the bot."
+        """Ping the bot."""
         await ctx.send("Ping ! Pang ! Pong !")
 
     @commands.hybrid_command()
