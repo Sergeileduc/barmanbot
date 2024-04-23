@@ -32,7 +32,7 @@
 # ENTRYPOINT ["/venv/bin/python3", "barmanbot.py"]
 
 # FROM python:3.10-slim-buster
-FROM surnet/alpine-python-wkhtmltopdf:3.10.6-0.12.6-small
+FROM surnet/alpine-python-wkhtmltopdf:3.12.2-0.12.6-full
 LABEL maintainer="sergei.leduc@gmail.com"
 # LABEL image="https://hub.docker.com/r/..."
 # LABEL source="https://github.com/..."

@@ -5,7 +5,7 @@ __pycache__/
 .pytest_*/
 *.py[cod]
 venv/
-.venv/
+.venv*/
 .env
 secret.py
 example.py
