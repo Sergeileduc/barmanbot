@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # logger.addHandler(logging.StreamHandler())
 
-login_url = "https://secure.lemonde.fr/sfuser/connexion"
+LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
 options = {
     'page-size': 'A4',
     'margin-top': '20mm',
@@ -36,12 +36,12 @@ headers = {
 
 
 # Retry
-tries = 10
-delay = 2
-max_delay = None
-backoff = 1.2
-# jitter = 0
-jitter = (0, 1)
+TRIES = 10
+DELAY = 2
+MAX_DELAY = None
+BACKOFF = 1.2
+# JITTER = 0
+JITTER = (0, 1)
 
 
 def _new_delay(max_delay, backoff, jitter, delay):
@@ -105,7 +105,7 @@ async def get_article(url: str) -> str:
     """
     session = aiohttp.ClientSession(headers=headers)
     # Login
-    r = await session.get(login_url)
+    r = await session.get(LOGIN_URL)
     soup = BeautifulSoup(await r.text(), "html.parser")
     form = soup.select_one('form[method="post"]')
     post_url = form.get('action')
@@ -163,7 +163,7 @@ class LeMonde(commands.Cog):
         "Download an article from Lemonde.fr"
 
         # Retry
-        _tries, _delay = tries, delay
+        _tries, _delay = TRIES, DELAY
 
         await ctx.defer(ephemeral=False)
 
@@ -179,7 +179,7 @@ class LeMonde(commands.Cog):
                 logger.warning("Tries left = %d", _tries)
 
                 error_message = ("Erreur : Timeout. "
-                                 f"Tentative {tries - _tries}/{tries} échec - "
+                                 f"Tentative {TRIES - _tries}/{TRIES} échec - "
                                  f"Nouvel essai dans {_delay:.2f} secondes...")
                 delete_after = _delay + 1.9
                 await ctx.channel.send(error_message, delete_after=delete_after)
@@ -188,10 +188,11 @@ class LeMonde(commands.Cog):
 
                 await asyncio.sleep(_delay)
 
-                _delay = _new_delay(max_delay, backoff, jitter, _delay)
+                _delay = _new_delay(MAX_DELAY, BACKOFF, JITTER, _delay)
         # End of retry While loop
 
         try:
+            await ctx.send(content=url)
             await ctx.send(file=discord.File(out_file))
             os.remove(out_file)
         except (TypeError, FileNotFoundError):
@@ -201,5 +202,17 @@ class LeMonde(commands.Cog):
 
 
 async def setup(bot):
+    """
+    Sets up the LeMonde cog for the provided Discord bot instance.
+
+    This asynchronous function adds the LeMonde cog to the bot and logs a message
+    indicating the successful addition of the cog.
+
+    Args:
+        bot: The Discord bot instance to which the cog will be added.
+
+    Returns:
+        None
+    """
     await bot.add_cog(LeMonde(bot))
     logger.info("lemonde cog added")
