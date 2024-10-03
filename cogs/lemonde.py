@@ -228,3 +228,20 @@ async def setup(bot):
     """
     await bot.add_cog(LeMonde(bot))
     logger.info("lemonde cog added")
+
+
+# TESTING
+if __name__ == "__main__":
+    # Testing lemonde pdf
+    import platform
+    from dotenv import load_dotenv
+    # Parse a .env file and then load all the variables found as environment variables.
+    load_dotenv()
+
+    logging.basicConfig(level=logging.DEBUG)
+
+    URL = "https://www.lemonde.fr/international/article/2024/10/03/face-a-l-iran-la-france-se-range-derriere-israel_6342763_3210.html"
+    if platform.system() == 'Windows':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+        asyncio.run(get_article(URL))
