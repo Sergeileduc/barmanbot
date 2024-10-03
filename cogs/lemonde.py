@@ -81,7 +81,21 @@ def remove_bloasts(article: Tag):
             logger.info("FAILS to remove %s bloat in the article. Pass.", c)
 
 
-def fix_images_urls(article: BeautifulSoup):
+def fix_images_urls(article: BeautifulSoup) -> None:
+    """Fixes image URLs in the provided article by updating the 'src' attribute.
+
+    This function scans the article for image tags and updates their 'src'
+    attributes based on the 'data-srcset' attribute. It ensures that the images
+    are correctly referenced for display.
+
+    Args:
+        article (BeautifulSoup): The BeautifulSoup object representing
+        the article from which to fix image URLs.
+
+    Returns:
+        None
+    """
+
     imgs = article.select("img")
     for im in imgs:
         if im.has_attr("data-srcset"):
@@ -108,16 +122,15 @@ async def get_article(url: str) -> str:
     r = await session.get(LOGIN_URL)
     soup = BeautifulSoup(await r.text(), "html.parser")
     form = soup.select_one('form[method="post"]')
-    post_url = form.get('action')
     payload = select_tag(form, "input")
     email = os.getenv("LEMONDE_EMAIL")
     payload['email'] = email
     payload['password'] = os.getenv("LEMONDE_PASSWD")
-    rp = await session.post(post_url, data=payload)
+    rp = await session.post(LOGIN_URL, data=payload)
     if rp.status != 200 or email not in await rp.text():
         raise ValueError("Wrong login")
     else:
-        print("Login was ok")
+        logger.info("Login was ok")
     await asyncio.sleep(random.uniform(2.0, 3.0))
 
     html = None
@@ -141,7 +154,7 @@ async def get_article(url: str) -> str:
         # article = soup.select_one(".zone.zone--article")
         remove_bloasts(article)
         fix_images_urls(article)
-        # print(article.prettify())
+
         full_name = url.rsplit('/', 1)[-1]
         out_file = f"{os.path.splitext(full_name)[0]}.pdf"
         logger.info("Ok, making the pdf now.")
@@ -161,7 +174,6 @@ class LeMonde(commands.Cog):
     # @commands.command()
     async def lemonde(self, ctx: commands.Context, url: str):
         "Download an article from Lemonde.fr"
-
         # Retry
         _tries, _delay = TRIES, DELAY
 
