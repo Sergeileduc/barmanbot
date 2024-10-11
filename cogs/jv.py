@@ -57,13 +57,13 @@ class TimeButton(Button):
         self.delta = delta
         self.title = embedtitle
 
-    async def callback(self, interraction: Interaction):
+    async def callback(self, interaction: Interaction):
         platform = self.view.platform
         one_platform = platform != "Toutes"
 
         # change style to green when clicked
         self.style = ButtonStyle.green
-        await interraction.response.edit_message(view=self.view)
+        await interaction.response.edit_message(view=self.view)
 
         full_title = f"{self.title} sur {platform}" if one_platform else self.title
         embed = Embed(title=full_title)
@@ -76,19 +76,19 @@ class TimeButton(Button):
             embed.add_field(name=game.name,
                             value=value,
                             inline=False)
-        await interraction.followup.send(embed=embed)
+        await interaction.followup.send(embed=embed)
 
 
 class PlatformButton(Button):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    async def callback(self, interraction: Interaction):
+    async def callback(self, interaction: Interaction):
         # await interraction.response.defer()
         self.view.platform = self.label
         # change style to green when clicked
         self.style = ButtonStyle.green
-        await interraction.response.edit_message(view=self.view)
+        await interaction.response.edit_message(view=self.view)
 
 
 def _unbloat_title(title: Tag):
@@ -128,7 +128,7 @@ def generate_url(month: int, year: int, platform=None) -> str:
                      'juillet', 'aout',
                      'septembre', 'octobre', 'novembre', 'decembre']
     french_m = french_months[month - 1]
-    logger.debug(f"generate_url - {platform = }")
+    logger.debug("generate_url - platform: %s", platform)
     if platform == "PC":
         return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-pc-{french_m}-{year}-date.htm"
     elif platform == "PS5":
@@ -144,6 +144,15 @@ def generate_url(month: int, year: int, platform=None) -> str:
 
 
 def next_month(month: int, year: int):
+    """Return a tuple of month and year for next month.
+
+    Args:
+        month(int): current month
+        year(int): current year
+
+    Returns:
+        (int, int): next month tuple of month and year
+    """
     return (month + 1, year) if month != 12 else (1, year + 1)
 
 
@@ -151,7 +160,7 @@ async def fetch_page(url: str):
     """Fetch a page on JV, for month releases. If pagination, return the next url.
 
     Args:
-        url (str): url of the release page
+        url(str): url of the release page
     """
     async with aiohttp.ClientSession() as session:
         res = await session.get(url, headers=headers)
@@ -165,7 +174,7 @@ async def fetch_page(url: str):
         title_tag = sortie.select_one("a[class*='gameTitleLink']")
         _unbloat_title(title_tag)
         title = title_tag.text
-        date = sortie.select_one("span[class*='releaseDate']").text
+        _date = sortie.select_one("span[class*='releaseDate']").text
         try:
             tmp = sortie.select_one("div[class*='platforms']").text
             platform = f"Plateformes :\t {tmp}"
@@ -175,7 +184,7 @@ async def fetch_page(url: str):
             part = sortie.select_one("div > span > h2 > a").get("href")
         except AttributeError:
             part = None
-        releases.append(NewGame(name=title, release=date, platforms=platform, part_url=part))
+        releases.append(NewGame(name=title, release=_date, platforms=platform, part_url=part))
     return releases, pages, url
 
 
@@ -191,7 +200,7 @@ async def fetch_month(url):
 
 
 async def fetch_time_delta(delta: timedelta, platform: str = None):
-    """Fetch games in a time delta relative to today (one week, one month, etc...)"""
+    """Fetch games in a time delta relative to today(one week, one month, etc...)"""
     today = date.today()
     int_month = today.month
     int_year = today.year
@@ -244,5 +253,6 @@ class JV(commands.Cog):
 
 
 async def setup(bot):
+    "Add the cog to the bot."
     await bot.add_cog(JV(bot))
     logger.info("Cog JV added")
