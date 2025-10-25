@@ -1,14 +1,23 @@
 """Lemonde -> PDF cog."""
+from discord.ext import commands
+from bs4 import BeautifulSoup, Tag
+import pdfkit
+import discord
+import aiohttp
 import asyncio
 import logging
 import os
 import random
+from dataclasses import dataclass
+from typing import Optional
 
-import aiohttp
-import discord
-import pdfkit
-from bs4 import BeautifulSoup, Tag
-from discord.ext import commands
+
+@dataclass
+class MaClasse:
+    premiere: str
+    deuxieme: Optional[str] = None
+
+
 # from reretry import retry
 
 logger = logging.getLogger(__name__)
@@ -28,11 +37,11 @@ options = {
         ('Accept-Encoding', 'gzip')
     ],
     "enable-local-file-access": "",
-    }
+}
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
-    }
+}
 
 
 # Retry
@@ -42,6 +51,17 @@ MAX_DELAY = None
 BACKOFF = 1.2
 # JITTER = 0
 JITTER = (0, 1)
+
+# Bloats in HTML
+CSS_BLOATS = [
+    ".meta__social",
+    "ul.breadcrumb",
+    "section.article__reactions",
+    "section.friend",
+    "section.article__siblings",
+    "aside.aside__iso.old__aside",
+    "section.inread",
+    ]
 
 
 def _new_delay(max_delay, backoff, jitter, delay):
@@ -60,18 +80,9 @@ def select_tag(soup: BeautifulSoup, selector: str) -> dict:
     return {i['name']: i['value'] for i in items if i.has_attr('name') if i.has_attr('value')}
 
 
-def remove_bloasts(article: Tag):
+def remove_bloasts(css_list: list[str], article: Tag):
     "Remove some bloats in the article soup."
-    css = [
-        ".meta__social",
-        "ul.breadcrumb",
-        "section.article__reactions",
-        "section.friend",
-        "section.article__siblings",
-        "aside.aside__iso.old__aside",
-        "section.inread",
-    ]
-    for c in css:
+    for c in css_list:
         try:
             list_elements = article.select(c)
             for elem in list_elements:
@@ -107,20 +118,29 @@ def fix_images_urls(article: BeautifulSoup) -> None:
                     im["src"] = url_im
 
 
+@dataclass
+class MyArticle:
+    path_to_file: str
+    error: Optional[str] = None
+
 # @retry(asyncio.exceptions.TimeoutError, tries=10, delay=2, backoff=1.2, jitter=(0, 1))
-async def get_article(url: str) -> str:
+
+
+async def get_article(url: str) -> MyArticle | None:
     """Get the article from the URL
 
     Args:
         url (str): url of article to be fetched
 
     Returns:
-        str: path to the PDF file
+        MyArticle | None
+    Raises:
+        IOError: if wkhtmltopdf fails, it raises IOError
     """
     session = aiohttp.ClientSession(headers=headers)
     # Login
     r = await session.get(LOGIN_URL)
-    soup = BeautifulSoup(await r.text(), "html.parser")
+    soup: BeautifulSoup = BeautifulSoup(await r.text(), "html.parser")
     form = soup.select_one('form[method="post"]')
     payload = select_tag(form, "input")
     email = os.getenv("LEMONDE_EMAIL")
@@ -152,15 +172,23 @@ async def get_article(url: str) -> str:
         article = soup.select_one("main > .article--content")
         # article = soup.select_one("section.zone--article")
         # article = soup.select_one(".zone.zone--article")
-        remove_bloasts(article)
+        remove_bloasts(CSS_BLOATS, article)
         fix_images_urls(article)
-
         full_name = url.rsplit('/', 1)[-1]
-        out_file = f"{os.path.splitext(full_name)[0]}.pdf"
+        out_file: str = f"{os.path.splitext(full_name)[0]}.pdf"
         logger.info("Ok, making the pdf now.")
-        pdfkit.from_string(str(article), out_file, options=options)
-        logger.info("Returning file")
-        return out_file
+        try:
+            pdfkit.from_string(str(article), out_file, options=options)
+            logger.info("Returning file")
+            return MyArticle(out_file)
+        except IOError as e:
+            logger.error("wkhtml a eu un problème")
+            logger.error(e)
+            logger.error("on va essayer d'enlever les media-embed")
+            remove_bloasts(["div.multimedia-embed",], article)
+            pdfkit.from_string(str(article), out_file, options=options)
+            logger.info("Returning file")
+            return MyArticle(out_file, error="Article contenant du multimédia que le bot a supprimé, article probablement incomplet.")
     return None
 
 
@@ -182,7 +210,7 @@ class LeMonde(commands.Cog):
         # While loop to retry fetching article, in case of Timeout errors
         while _tries:
             try:
-                out_file = await get_article(url)
+                my_article: MyArticle = await get_article(url)
                 logger.info("out file ok")
                 break
             except asyncio.exceptions.TimeoutError:
@@ -205,8 +233,10 @@ class LeMonde(commands.Cog):
 
         try:
             await ctx.send(content=url)
-            await ctx.send(file=discord.File(out_file))
-            os.remove(out_file)
+            await ctx.send(file=discord.File(my_article.path_to_file))
+            if my_article.error:
+                await ctx.send(my_article.error)
+            os.remove(my_article.path_to_file)
         except (TypeError, FileNotFoundError):
             await ctx.send("Echec de la commande. Réessayez, peut-être ?")
         finally:
@@ -240,8 +270,13 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
 
-    URL = "https://www.lemonde.fr/international/article/2024/10/03/face-a-l-iran-la-france-se-range-derriere-israel_6342763_3210.html"
+    # URL = "https://www.lemonde.fr/international/article/2024/10/03/face-a-l-iran-la-france-se-range-derriere-israel_6342763_3210.html"
+    URL = "https://www.lemonde.fr/les-decodeurs/article/2025/09/25/condamnation-de-nicolas-sarkozy-la-chronologie-complete-de-l-affaire-du-financement-libyen_6482596_4355771.html"
     if platform.system() == 'Windows':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+    try:
         asyncio.run(get_article(URL))
+    except IOError as e:
+        logger.error("Erreur IOError")
+        logger.error(e)
