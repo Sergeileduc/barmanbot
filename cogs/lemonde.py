@@ -1,4 +1,5 @@
 """Lemonde -> PDF cog."""
+from discord import app_commands, Interaction
 from discord.ext import commands
 from bs4 import BeautifulSoup, Tag
 import pdfkit
@@ -7,16 +8,15 @@ import aiohttp
 import asyncio
 import logging
 import os
+
 import random
 from dataclasses import dataclass
 from typing import Optional
 
-
-@dataclass
-class MaClasse:
-    premiere: str
-    deuxieme: Optional[str] = None
-
+from utils.base_cog import BaseSlashCog
+from utils.decorators import dev_command
+from utils.tools import to_bool
+from utils.discord_types import LiteralBool
 
 # from reretry import retry
 
@@ -25,27 +25,13 @@ logger.setLevel(logging.INFO)
 # logger.addHandler(logging.StreamHandler())
 
 LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
-options = {
-    'page-size': 'A4',
-    'margin-top': '20mm',
-    'margin-right': '20mm',
-    'margin-bottom': '20mm',
-    'margin-left': '20mm',
-    'encoding': "UTF-8",
-    'no-outline': None,
-    'custom-header': [
-        ('Accept-Encoding', 'gzip')
-    ],
-    "enable-local-file-access": "",
-}
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
 }
 
-
 # Retry
-TRIES = 10
+TRIES = 3
 DELAY = 2
 MAX_DELAY = None
 BACKOFF = 1.2
@@ -62,6 +48,89 @@ CSS_BLOATS = [
     "aside.aside__iso.old__aside",
     "section.inread",
     ]
+
+
+def build_pdf_html(fragment: str, mobile: bool = False, dark: bool = False) -> tuple[str, dict]:
+    """
+    Construit un HTML complet + options PDFkit selon le format et le thème.
+
+    Args:
+        fragment (str): Contenu HTML à insérer dans le <body>.
+        format (str): "A4" ou "mobile"
+        dark (bool): True pour thème sombre, False pour thème clair
+
+    Returns:
+        tuple: (html_str, pdfkit_options)
+    """
+    # Configs de base
+    if mobile:
+        page_size = "A6"
+        margin_mm = 7 if not dark else 0
+        padding_mm = 0 if not dark else 7
+    else:
+        page_size = "A4"
+        margin_mm = 20 if not dark else 0
+        padding_mm = 0 if not dark else 20
+
+    # Options PDFkit
+    options = {
+        'page-size': page_size,
+        'margin-top': f'{margin_mm}mm',
+        'margin-right': f'{margin_mm}mm',
+        'margin-bottom': f'{margin_mm}mm',
+        'margin-left': f'{margin_mm}mm',
+        'encoding': "UTF-8",
+        'no-outline': None,
+        'custom-header': [('Accept-Encoding', 'gzip')],
+        'enable-local-file-access': "",
+    }
+
+    # CSS selon thème
+    if dark:
+        css = f"""
+        <style>
+        html {{
+            background: #121212;
+        }}
+        body {{
+            background: transparent;
+            color: #e0e0e0;
+            margin: 0;
+            padding: {padding_mm}mm;
+            font-family: sans-serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            box-sizing: border-box;
+        }}
+        a {{ color: #90caf9; }}
+        img {{ filter: brightness(0.8) contrast(1.2); max-width: 100%; height: auto; }}
+        </style>
+        """
+    else:
+        css = """
+            <style>
+            body {
+                font-family: sans-serif;
+                font-size: 12pt;
+                line-height: 1.6;
+            }
+            </style>
+        """
+
+    # HTML complet
+    html = f"""
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    {css}
+    </head>
+    <body>
+    {fragment}
+    </body>
+    </html>
+    """
+
+    return html.strip(), options
 
 
 def _new_delay(max_delay, backoff, jitter, delay):
@@ -126,11 +195,13 @@ class MyArticle:
 # @retry(asyncio.exceptions.TimeoutError, tries=10, delay=2, backoff=1.2, jitter=(0, 1))
 
 
-async def get_article(url: str) -> MyArticle | None:
+async def get_article(url: str, mobile: bool = False, dark_mode: bool = False) -> MyArticle | None:
     """Get the article from the URL
 
     Args:
         url (str): url of article to be fetched
+        mobile (bool): is the PDF is for mobile ? default is False.
+        dark_mode (bool): is the PDF in dark mode ? default is False
 
     Returns:
         MyArticle | None
@@ -174,9 +245,14 @@ async def get_article(url: str) -> MyArticle | None:
         # article = soup.select_one(".zone.zone--article")
         remove_bloasts(CSS_BLOATS, article)
         fix_images_urls(article)
+        # ------------
+        article, options = build_pdf_html(article, mobile=mobile, dark=dark_mode)
+
+        # --------------------
         full_name = url.rsplit('/', 1)[-1]
         out_file: str = f"{os.path.splitext(full_name)[0]}.pdf"
         logger.info("Ok, making the pdf now.")
+
         try:
             pdfkit.from_string(str(article), out_file, options=options)
             logger.info("Returning file")
@@ -192,25 +268,60 @@ async def get_article(url: str) -> MyArticle | None:
     return None
 
 
-class LeMonde(commands.Cog):
+# class LeMonde(commands.Cog):
+#     """LeMonde commands"""
+
+#     def __init__(self, bot: commands.Bot):
+#         self.bot = bot
+
+
+class LeMonde(BaseSlashCog):
     """LeMonde commands"""
 
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
+    def __init__(self, bot):
+        super().__init__(bot)
 
-    @commands.hybrid_command()
-    # @commands.command()
-    async def lemonde(self, ctx: commands.Context, url: str):
-        "Download an article from Lemonde.fr"
+    @dev_command(name="lemonde", description="Télécharge un article du Monde")
+    @app_commands.describe(url="URL de l'article à télécharger",
+                           mobile="Activer le mode mobile",
+                           dark_mode="Activer le mode sombre"
+                           )
+    async def lemonde(self,
+                      interaction: discord.Interaction,
+                      url: str,
+                      mobile: LiteralBool = "Non",
+                      dark_mode: LiteralBool = "Non",
+                      ):
+        """
+        Télécharge un article depuis Lemonde.fr et l'affiche dans Discord.
+
+        Args:
+            interaction(discord.Interaction): L'interaction Discord.
+            url (str): Lien vers l'article.
+            mobile (Literal["Oui", "Non"]): Mode mobile.
+            dark_mode (Literal["Oui", "Non"]): Mode sombre.
+
+        Comportement :
+            - Affiche les paramètres reçus dans un message de suivi.
+            - Tente de récupérer l'article avec plusieurs essais en cas de timeout.
+            - Utilise `to_bool()` pour convertir les paramètres en booléens.
+        """
+
+        await interaction.response.defer(ephemeral=False)
+
+        # Log pour debug
+        logger.info(f"Commande /lemonde appelée avec url={url}, mobile={mobile}, dark_mode={dark_mode}")
+        await interaction.followup.send(f"📄 Article: {url}\n📱 Mobile: {mobile}\n🌙 Mode sombre: {dark_mode}")
+
         # Retry
         _tries, _delay = TRIES, DELAY
-
-        await ctx.defer(ephemeral=False)
 
         # While loop to retry fetching article, in case of Timeout errors
         while _tries:
             try:
-                my_article: MyArticle = await get_article(url)
+                my_article: MyArticle = await get_article(url=url,
+                                                          mobile=to_bool(mobile),
+                                                          dark_mode=to_bool(dark_mode))
                 logger.info("out file ok")
                 break
             except asyncio.exceptions.TimeoutError:
@@ -222,7 +333,7 @@ class LeMonde(commands.Cog):
                                  f"Tentative {TRIES - _tries}/{TRIES} échec - "
                                  f"Nouvel essai dans {_delay:.2f} secondes...")
                 delete_after = _delay + 1.9
-                await ctx.channel.send(error_message, delete_after=delete_after)
+                await interaction.followup.send(error_message, delete_after=delete_after)
                 if not _tries:
                     raise
 
@@ -232,13 +343,13 @@ class LeMonde(commands.Cog):
         # End of retry While loop
 
         try:
-            await ctx.send(content=url)
-            await ctx.send(file=discord.File(my_article.path_to_file))
+            # await interaction.followup.send(content=url)
+            await interaction.followup.send(file=discord.File(my_article.path_to_file))
             if my_article.error:
-                await ctx.send(my_article.error)
+                await interaction.followup.send(my_article.error)
             os.remove(my_article.path_to_file)
         except (TypeError, FileNotFoundError):
-            await ctx.send("Echec de la commande. Réessayez, peut-être ?")
+            await interaction.followup.send("Echec de la commande. Réessayez, peut-être ?")
         finally:
             logger.info("------------------")
 
@@ -269,14 +380,16 @@ if __name__ == "__main__":
     load_dotenv()
 
     logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
 
     # URL = "https://www.lemonde.fr/international/article/2024/10/03/face-a-l-iran-la-france-se-range-derriere-israel_6342763_3210.html"
-    URL = "https://www.lemonde.fr/les-decodeurs/article/2025/09/25/condamnation-de-nicolas-sarkozy-la-chronologie-complete-de-l-affaire-du-financement-libyen_6482596_4355771.html"
+    URL = "https://www.lemonde.fr/societe/article/2024/10/05/proces-des-viols-de-mazan-le-huis-clos-leve-les-accuses-maintiennent-leur-version-apres-le-visionnage-des-videos_6344040_3224.html"
+    # URL = "https://www.lemonde.fr/les-decodeurs/article/2025/09/25/condamnation-de-nicolas-sarkozy-la-chronologie-complete-de-l-affaire-du-financement-libyen_6482596_4355771.html"
     if platform.system() == 'Windows':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     try:
-        asyncio.run(get_article(URL))
+        asyncio.run(get_article(URL, mobile=True, dark_mode=True))
     except IOError as e:
         logger.error("Erreur IOError")
         logger.error(e)

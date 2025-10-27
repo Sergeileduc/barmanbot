@@ -11,27 +11,45 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
+# import utils.tools
+
+PREFIX = '!'
 
 # Parse a .env file and then load all the variables found as environment variables.
 load_dotenv()
 TOKEN: str = os.getenv("BARMAN_DISCORD_TOKEN")
-# Done
+DEV_MODE = os.getenv("DEV_MODE", "").strip().lower() in ("1", "true", "yes", "on")
+DEV_GUILD_ID = int(os.getenv("DEV_GUILD_ID", "0"))
 
 # Logging
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
 
-PREFIX = '!'
-
 # --debug option
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Lancement du bot Discord")
 parser.add_argument("-d", "--debug",
-                    help="change prefix to '?'", action="store_true")
+                    action="store_true", help="change prefix to '?'", )
+parser.add_argument("--dev",
+                    action="store_true", help="Activer le mode développement")
 args = parser.parse_args()
+
 if args.debug:
     logging.info("You are in debug mode.")
     logging.info("Prefix is now '?'")
     PREFIX = '?'
+
+if args.dev:
+    DEV_MODE = True
+    os.environ["DEV_MODE"] = "true"  # Pour que les autres modules le voient aussi
+else:
+    os.environ["DEV_MODE"] = "false"
+
+# Log du mode
+if DEV_MODE:
+    print(f"🚧 Mode développement activé (guild={DEV_GUILD_ID})")
+    logging.info("guild for dev : %s", str(DEV_GUILD_ID))
+else:
+    print("🚀 Mode production activé")
 
 
 # parameters for the bot
@@ -56,7 +74,6 @@ async def on_ready():
     logging.info('Logged in as')
     logging.info(bot.user.name)
     logging.info(bot.user.id)
-    logging.info('------')
     # await bot.tree.sync()
 
 
