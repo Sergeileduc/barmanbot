@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """JV cog."""
 
+import asyncio
 import contextlib
 import logging
 import re
@@ -29,18 +30,52 @@ QUARTER = timedelta(days=91)
 
 
 class NewGame:
-    """Class for keeping informations on a game, such as name, release date, etc..."""
+    """Represents a video game with metadata such as name, release date, platforms, and URL.
+
+    This class encapsulates basic information about a game and provides a formatted
+    string representation. The release date is parsed from a raw string and converted
+    to a `datetime.date` object. If parsing fails, a default placeholder date is used.
+    """
 
     def __init__(self, name: str, release: str, platforms: str, part_url: str) -> None:
+        """Initializes a new game instance.
+
+        Args:
+            name (str): The name of the game.
+            release (str): The raw release string, typically like 'Sortie: 12 décembre 2023'.
+            platforms (str): The platforms the game is available on.
+            part_url (str): The partial URL path to be joined with the base site.
+        """
+
         self.name = name
         self.release = release
         self.platforms = platforms
         self.url = urljoin("https://www.jeuxvideo.com", part_url)
+        self.date = self._parse_release_date(release)
+
+    @staticmethod
+    def _parse_release_date(release: str) -> date:
+        """Parses a release string into a date object.
+
+        Removes the 'Sortie: ' prefix from the release string and attempts to
+        convert the remaining text into a `datetime.date` object using `ddp.get_date_data`.
+
+        If parsing fails due to missing attributes, returns a fallback date far
+        in the future (January 1st, 3000).
+
+        Args:
+            release (str): A release string, typically formatted like
+                'Sortie: 12 décembre 2023'.
+
+        Returns:
+            date: The parsed release date, or a default placeholder date.
+        """
+
         try:
-            date_str = re.sub('Sortie: ', '', self.release)
-            self.date = ddp.get_date_data(date_str).date_obj.date()
+            date_str = re.sub('Sortie: ', '', release)
+            return ddp.get_date_data(date_str).date_obj.date()
         except AttributeError:
-            self.date = date(year=3000, month=1, day=1)
+            return date(3000, 1, 1)
 
     def __str__(self) -> str:
         return f"{self.name}\n{self.release}\n{self.platforms}\n{self.url}\n{self.date}\n----------"
@@ -115,15 +150,27 @@ def find_next_page(tag: Tag):
 
 
 def generate_url(month: int, year: int, platform=None) -> str:
-    """generate JV url
+    """Generates a jeuxvideo.com release calendar URL for a given month, year, and platform.
+
+    Converts the numeric month into its French name and builds the appropriate URL
+    based on the selected platform. If the platform is not recognized, returns None.
+
+    Supported platforms:
+        - "PC"
+        - "PS5"
+        - "Switch"
+        - "Xbox"
+        - "Toutes" (all platforms)
 
     Args:
-        month (int):
-        year (int):
+        month (int): Month number (1–12).
+        year (int): Year of the release calendar.
+        platform (str, optional): Target platform. Defaults to None.
 
     Returns:
-        str: url
+        str: A formatted URL string for the release calendar, or None if the platform is unsupported.
     """
+
     french_months = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin',
                      'juillet', 'aout',
                      'septembre', 'octobre', 'novembre', 'decembre']
@@ -165,6 +212,7 @@ async def fetch_page(url: str):
     async with aiohttp.ClientSession() as session:
         res = await session.get(url, headers=headers)
         soup = BeautifulSoup(await res.text(), "html.parser")
+        print(soup.prettify())
     list_of_new_games = soup.select("div[class*='gameMetadatas']")
     pagination = soup.select_one("div[class*='pagination']")
     pages, url = find_next_page(pagination)
@@ -256,3 +304,18 @@ async def setup(bot):
     "Add the cog to the bot."
     await bot.add_cog(JV(bot))
     logger.info("Cog JV added")
+
+
+if __name__ == "__main__":
+    logger.setLevel(logging.DEBUG)
+
+    async def main():
+        # url = generate_url(10, 2025, "PC")
+        url = "https://www.jeuxvideo.com/jeux/sorties/machine-22/annee-2025/mois-10/"
+        print(url)
+        r, p, u = await fetch_page(url)
+        print(r)
+        print(p)
+        print(u)
+
+    asyncio.run(main())
