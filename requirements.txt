@@ -5,3 +5,4 @@ pdfkit
 aiohttp
 google-api-python-client
 dateparser
+requests-htmlc
