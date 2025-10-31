@@ -2,6 +2,11 @@
 # -*- coding: utf-8 -*-
 """JV cog."""
 
+from typing import Callable, Awaitable, List
+from urllib.parse import urljoin, urlparse
+from typing import Callable, List
+from bs4 import BeautifulSoup
+import requests
 import asyncio
 import contextlib
 import logging
@@ -10,11 +15,13 @@ from datetime import date, timedelta
 from urllib.parse import urljoin
 
 import aiohttp
-from bs4 import BeautifulSoup, Tag
+from bs4 import Tag, BeautifulSoup
 from dateparser.date import DateDataParser
 from discord import Embed, Interaction, ButtonStyle
 from discord.ext import commands
 from discord.ui import Button, View
+
+from utils.tools import get_soup_hack
 
 logger = logging.getLogger(__name__)
 
@@ -132,21 +139,25 @@ def _unbloat_title(title: Tag):
         em.decompose()  # remove some bloats
 
 
-def find_next_page(tag: Tag):
-    """Find if there is a button "next page".
+# def find_next_page(soup: BeautifulSoup):
+#     """Find if there is a button "next page".
 
-    Args:
-        tag (Tag): Beautiful Soup Tag
+#     Args:
+#         soup (BeautifulSoup): Beautiful Soup
 
-    Returns:
-        bool, str: if found, then give the url for next page
-    """
-    found = False
-    url = ""
-    if nextpage := tag.find("a", class_=re.compile("page")):
-        url = urljoin("https://www.jeuxvideo.com", nextpage.get("href"))
-        found = True
-    return found, url
+#     Returns:
+#         bool, str: if found, then give the url for next page
+#     """
+#     found = False
+#     url = ""
+#     pagination = soup.select_one("div.pagination")
+#     if not pagination:
+#         return False, None
+#     if nextpage := pagination.find("a", class_=re.compile("page")):
+#         print("NEXT")
+#         url = urljoin("https://www.jeuxvideo.com", nextpage.get("href"))
+#         found = True
+#     return found, url
 
 
 def generate_url(month: int, year: int, platform=None) -> str:
@@ -171,23 +182,35 @@ def generate_url(month: int, year: int, platform=None) -> str:
         str: A formatted URL string for the release calendar, or None if the platform is unsupported.
     """
 
-    french_months = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin',
-                     'juillet', 'aout',
-                     'septembre', 'octobre', 'novembre', 'decembre']
-    french_m = french_months[month - 1]
-    logger.debug("generate_url - platform: %s", platform)
+    # french_months = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin',
+    #                  'juillet', 'aout',
+    #                  'septembre', 'octobre', 'novembre', 'decembre']
+    # french_m = french_months[month - 1]
+    # logger.debug("generate_url - platform: %s", platform)
+    # if platform == "PC":
+    #     return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-pc-{french_m}-{year}-date.htm"
+    # elif platform == "PS5":
+    #     return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-ps5-playstation-5-{french_m}-{year}-date.htm"
+    # elif platform == "Switch":
+    #     return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-switch-nintendo-switch-{french_m}-{year}-date.htm"
+    # elif platform == "Xbox":
+    #     return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-xbox-series-{french_m}-{year}-date.htm"
+    # elif platform == "Toutes":
+    #     return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-{french_m}-{year}-date.htm"
+    # else:
+    #     return None
+
     if platform == "PC":
-        return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-pc-{french_m}-{year}-date.htm"
+        return f"https://www.jeuxvideo.com/jeux/sorties/machine-10/annee-{year}/mois-{month}/"
     elif platform == "PS5":
-        return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-ps5-playstation-5-{french_m}-{year}-date.htm"
+        return f"https://www.jeuxvideo.com/jeux/sorties/machine-22/annee-{year}/mois-{month}/"
     elif platform == "Switch":
-        return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-switch-nintendo-switch-{french_m}-{year}-date.htm"
+        # TODO : ça ne fait que la switch 2, pas la 1, faudrait améliorer ça
+        return f"https://www.jeuxvideo.com/jeux/sorties/machine-42/annee-{year}/mois-{month}/"
     elif platform == "Xbox":
-        return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-xbox-series-{french_m}-{year}-date.htm"
+        return f"https://www.jeuxvideo.com/jeux/sorties/machine-32/annee-{year}/mois-{month}/"
     elif platform == "Toutes":
-        return f"https://www.jeuxvideo.com/sorties/dates-de-sortie-{french_m}-{year}-date.htm"
-    else:
-        return None
+        return f"https://www.jeuxvideo.com/jeux/sorties/annee-{year}/mois-{month}/"
 
 
 def next_month(month: int, year: int):
@@ -203,19 +226,62 @@ def next_month(month: int, year: int):
     return (month + 1, year) if month != 12 else (1, year + 1)
 
 
-async def fetch_page(url: str):
-    """Fetch a page on JV, for month releases. If pagination, return the next url.
+def _get_platform(tag: Tag) -> str:
+    """Get platform from the website
 
     Args:
-        url(str): url of the release page
+        tag (Tag): div for one video game
+
+    Returns:
+        str: the platform the game will be available
     """
-    async with aiohttp.ClientSession() as session:
-        res = await session.get(url, headers=headers)
-        soup = BeautifulSoup(await res.text(), "html.parser")
-        print(soup.prettify())
-    list_of_new_games = soup.select("div[class*='gameMetadatas']")
-    pagination = soup.select_one("div[class*='pagination']")
-    pages, url = find_next_page(pagination)
+    try:
+        tmp = tag.select_one("div.cardGameList__gamePlatforms").get_text(strip=True)
+        platform = f"Plateformes :\t {tmp}"
+    except AttributeError:
+        platform = "no platform"
+    return platform
+
+
+# def _extract_release_date(html: Tag) -> str:
+#     """get the date from the HTML
+
+#     Args:
+#         tag (Tag): div for one video game
+
+#     Returns:
+#         str: date formated in french string
+#     """
+#     date_span = html.select_one("span.cardGameList__releaseDate span")
+#     if date_span:
+#         return date_span.get_text(strip=True)
+#     return None
+
+def _extract_game_href(html: Tag) -> str | None:
+    """get the partial URL of a video game (in the div)
+
+    Args:
+        html (Tag): div for one video game
+
+    Returns:
+        str | None: partial URL
+    """
+    link_tag = html.select_one("a.cardGameList__gameTitleLink")
+    if link_tag and link_tag.has_attr("href"):
+        return link_tag["href"]
+    return None
+
+
+async def scrape_page(soup: BeautifulSoup) -> list[NewGame]:
+    """Scrape a page on JV, for month releases.
+
+    Args:
+        soup (BeautifulSoup): soup for the page
+
+    Returns:
+        list[NewGame]: list of games for the page
+    """
+    list_of_new_games = soup.select("div[class*='gameMetadata']")
 
     releases = []
     for sortie in list_of_new_games:
@@ -223,37 +289,67 @@ async def fetch_page(url: str):
         _unbloat_title(title_tag)
         title = title_tag.text
         _date = sortie.select_one("span[class*='releaseDate']").text
+        platform = _get_platform(sortie)
         try:
-            tmp = sortie.select_one("div[class*='platforms']").text
-            platform = f"Plateformes :\t {tmp}"
-        except AttributeError:
-            platform = "no platform"
-        try:
-            part = sortie.select_one("div > span > h2 > a").get("href")
+            part = _extract_game_href(sortie)
         except AttributeError:
             part = None
         releases.append(NewGame(name=title, release=_date, platforms=platform, part_url=part))
-    return releases, pages, url
+    return releases
 
 
-async def fetch_month(url):
+async def scrape_all_pages(
+    start_url: str,
+    process_page_callback: Callable[[BeautifulSoup], Awaitable[List]]
+) -> List:
+    """Parcourt toutes les pages d'une pagination à partir d'une URL complète (version async).
+
+    Args:
+        start_url (str): L'URL complète de la première page (ex. "https://www.jeuxvideo.com/jeux/sorties/annee-2026/?p=1").
+        process_page_callback (Callable[[BeautifulSoup], Awaitable[List]]):
+            Une fonction async qui prend un objet BeautifulSoup et retourne une liste d'éléments extraits.
+
+    Returns:
+        List: Une liste contenant tous les éléments extraits de toutes les pages.
+    """
+    current_url = start_url
+    visited = set()
+    all_results = []
+
+    while current_url and current_url not in visited:
+        visited.add(current_url)
+        logger.info(f"Scraping {current_url}")
+        soup = await get_soup_hack(current_url)
+
+        page_results = await process_page_callback(soup)
+        if isinstance(page_results, list):
+            all_results.extend(page_results)
+        else:
+            logger.info("⚠️ La fonction de traitement n'a pas retourné une liste.")
+
+        next_link = soup.select_one('.pagination__button--next')
+        if next_link and 'href' in next_link.attrs:
+            current_url = urljoin(current_url, next_link['href'])
+        else:
+            current_url = None
+
+    return all_results
+
+
+async def fetch_month(url) -> List[NewGame]:
     """Fetch all games in a month, even if there are several pages."""
     logger.debug("fetch_month url : %s", url)
-    pages = True
-    games = []
-    while pages:
-        games_page, pages, url = await fetch_page(url)
-        games += games_page
-    return games
+    return await scrape_all_pages(start_url=url,
+                                  process_page_callback=scrape_page)
 
 
 async def fetch_time_delta(delta: timedelta, platform: str = None):
     """Fetch games in a time delta relative to today(one week, one month, etc...)"""
     today = date.today()
-    int_month = today.month
-    int_year = today.year
+    int_month: int = today.month
+    int_year: int = today.year
 
-    url = generate_url(today.month, today.year, platform=platform)
+    url: str = generate_url(today.month, today.year, platform=platform)
     logger.debug("fetch_time_delta url : %s", url)
     games = await fetch_month(url)
     # next month
@@ -309,13 +405,24 @@ async def setup(bot):
 if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
 
+    def print_page_title(soup):
+        try:
+            title = soup.title.string.strip() if soup.title else "Sans titre"
+            print("Titre de la page :", title)
+            return [title]
+        except AttributeError:
+            return []
+
     async def main():
         # url = generate_url(10, 2025, "PC")
-        url = "https://www.jeuxvideo.com/jeux/sorties/machine-22/annee-2025/mois-10/"
+        # url = "https://www.jeuxvideo.com/jeux/sorties/machine-22/annee-2025/mois-10/"
+        # url = "https://www.jeuxvideo.com/jeux/sorties/machine-32/annee-2025/mois-10/"
+        # url = "https://www.jeuxvideo.com/jeux/sorties/annee-2025/mois-10/"
+        url = "https://www.jeuxvideo.com/jeux/sorties/annee-2026/"
         print(url)
-        r, p, u = await fetch_page(url)
-        print(r)
-        print(p)
-        print(u)
 
+        # results = await fetch_month(url)
+        results = await fetch_time_delta(delta=MONTH, platform="PC")
+        for r in results:
+            print(r)
     asyncio.run(main())
