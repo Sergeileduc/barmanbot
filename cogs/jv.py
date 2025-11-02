@@ -108,17 +108,27 @@ class TimeButton(Button):
         await interaction.response.edit_message(view=self.view)
 
         full_title = f"{self.title} sur {platform}" if one_platform else self.title
-        embed = Embed(title=full_title)
+        embeds = []
+        current_embed = Embed(title=full_title)
+
         games = await fetch_time_delta(self.delta, platform=platform)
+
         for game in games:
+            if len(current_embed.fields) >= 25:
+                embeds.append(current_embed)
+                current_embed = Embed(title="Suite de la liste")
+
             if game.platforms != "no platform":
                 value = f"{game.release}\n{game.platforms}\n{game.url}"
             else:
                 value = f"{game.release}\n{game.url}"
-            embed.add_field(name=game.name,
-                            value=value,
-                            inline=False)
-        await interaction.followup.send(embed=embed)
+
+            current_embed.add_field(name=game.name, value=value, inline=False)
+
+        embeds.append(current_embed)  # Ajoute le dernier embed
+
+        for embed in embeds:
+            await interaction.followup.send(embed=embed)
 
 
 class PlatformButton(Button):
@@ -281,9 +291,13 @@ async def scrape_page(soup: BeautifulSoup) -> list[NewGame]:
     Returns:
         list[NewGame]: list of games for the page
     """
-    list_of_new_games = soup.select("div[class*='gameMetadata']")
 
     releases = []
+    try:
+        list_of_new_games = soup.select("div[class*='gameMetadata']")
+    except AttributeError:
+        return releases
+
     for sortie in list_of_new_games:
         title_tag = sortie.select_one("a[class*='gameTitleLink']")
         _unbloat_title(title_tag)
