@@ -2,21 +2,15 @@
 # -*- coding: utf-8 -*-
 """JV cog."""
 
+import logging
 from typing import Callable, Awaitable, List
-from urllib.parse import urljoin, urlparse
-from typing import Callable, List
-from bs4 import BeautifulSoup
-import requests
+from urllib.parse import urljoin
 import asyncio
 import contextlib
-import logging
 import re
 from datetime import date, timedelta
-from urllib.parse import urljoin
-
-import aiohttp
-from bs4 import Tag, BeautifulSoup
 from dateparser.date import DateDataParser
+from bs4 import BeautifulSoup, Tag
 from discord import Embed, Interaction, ButtonStyle
 from discord.ext import commands
 from discord.ui import Button, View
@@ -100,6 +94,8 @@ class TimeButton(Button):
         self.title = embedtitle
 
     async def callback(self, interaction: Interaction):
+        # await interaction.response.defer(ephemeral=False)
+
         platform = self.view.platform
         one_platform = platform != "Toutes"
 
@@ -110,6 +106,9 @@ class TimeButton(Button):
         full_title = f"{self.title} sur {platform}" if one_platform else self.title
         embeds = []
         current_embed = Embed(title=full_title)
+
+        # this command takes TIME, so warn the user !
+        await interaction.followup.send(content="ça va prendre du temps ! c'est normal !")
 
         games = await fetch_time_delta(self.delta, platform=platform)
 
