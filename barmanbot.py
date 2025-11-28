@@ -63,7 +63,7 @@ bot = commands.Bot(command_prefix=PREFIX, help_command=None,
 cogs_ext_list = ["cogs.misc",
                  "cogs.lemonde",
                  "cogs.code",
-                 "cogs.jv",
+                 #  "cogs.jv",
                  "cogs.youtube",
                  ]
 
