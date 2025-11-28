@@ -16,7 +16,7 @@ from typing import Optional
 from utils.base_cog import BaseSlashCog
 from utils.decorators import dev_command
 from utils.tools import to_bool
-from utils.discord_types import LiteralBool
+from utils.discord_types import Literal
 
 # from reretry import retry
 
@@ -289,8 +289,8 @@ class LeMonde(BaseSlashCog):
     async def lemonde(self,
                       interaction: discord.Interaction,
                       url: str,
-                      mobile: LiteralBool = "Non",
-                      dark_mode: LiteralBool = "Non",
+                      mobile: Literal["Oui", "Non"] = "Non",
+                      dark_mode: Literal["Oui", "Non"] = "Non",
                       ):
         """
         Télécharge un article depuis Lemonde.fr et l'affiche dans Discord.
@@ -316,7 +316,8 @@ class LeMonde(BaseSlashCog):
         # Retry
         _tries, _delay = TRIES, DELAY
 
-        await interaction.followup.send("⏳ Traitement en cours…", ephemeral=False)
+        msg_wait = await interaction.followup.send("⏳ Traitement en cours…",
+                                                   ephemeral=False)
         # While loop to retry fetching article, in case of Timeout errors
         while _tries:
             try:
@@ -352,6 +353,7 @@ class LeMonde(BaseSlashCog):
         except (TypeError, FileNotFoundError):
             await interaction.followup.send("Echec de la commande. Réessayez, peut-être ?")
         finally:
+            msg_wait.delete()
             logger.info("------------------")
 
 
