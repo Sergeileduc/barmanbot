@@ -354,7 +354,7 @@ class LeMonde(BaseSlashCog):
         except (TypeError, FileNotFoundError):
             await interaction.followup.send("Echec de la commande. Réessayez, peut-être ?")
         finally:
-            msg_wait.delete()
+            await msg_wait.delete()
             logger.info("------------------")
 
 
