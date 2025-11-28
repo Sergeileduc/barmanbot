@@ -1,4 +1,4 @@
-FROM python:3.12-slim-bookworm
+FROM python:3.11-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -18,7 +18,7 @@ COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ÉTAPE X : Télécharge et installe les binaires des navigateurs (Chromium ici)
-RUN python -m playwright install chromium
+RUN python -m playwright install --with-deps chromium
 
 COPY . /app/
 
