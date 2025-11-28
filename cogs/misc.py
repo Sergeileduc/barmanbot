@@ -36,9 +36,13 @@ class Misc(commands.Cog):
         await ctx.defer()
         try:
             # Supprime toutes les commandes locales
-            self.bot.tree.clear_commands(guild=ctx.guild)
-            await self.bot.tree.sync()
+            # self.bot.tree.clear_commands(guild=ctx.guild)
+            self.bot.tree.clear_commands(guild=None)
+            synced = await self.bot.tree.sync()
             await ctx.send("✅ Commandes globales purgées et resynchronisées.", ephemeral=True)
+            await ctx.send(f"✅ Sync OK ({len(synced)} commandes)")
+            for cmd in self.bot.tree.get_commands():
+                await ctx.send(f"Commande enregistrée: {cmd.name}")
         except Exception as e:
             await ctx.send(f"⚠️ Échec du nettoyage : {e}", ephemeral=True)
 
