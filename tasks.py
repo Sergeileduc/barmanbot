@@ -125,11 +125,10 @@ def run(c):
     c.run('python barmanbot.py')
 
 
-@task(name="prod")
+@task(name="prod", aliases=["compose-prod"])
 def compose_prod(c):
     """Build et lance le bot avec le profil prod.
-    Attention, en cli, c'est 'inv compose-prod' avec un -
-    l'alias prod marche aussi donc c'est `inv prod`"""
+    Attention, en cli, c'est `inv prod` ou `inv compose-prod`"""
     c.run("docker-compose --profile prod up --build")
 
 
@@ -137,3 +136,16 @@ def compose_prod(c):
 def deploy(c):
     """Deploy bot on fly.io"""
     c.run('flyctl deploy')
+
+
+@task
+def discord_restart(c):
+    """
+    Redémarre Discord (Windows).
+    """
+    # Kill Discord
+    c.run('taskkill /IM Discord.exe /F', hide=True, warn=True)
+
+    # Relance Discord via Update.exe
+    c.run(r'%LocalAppData%\Discord\Update.exe --processStart Discord.exe', hide=True)
+    print("✅ Discord redémarré.")
