@@ -23,6 +23,7 @@ class Misc(commands.Cog):
     async def sync(self, ctx: commands.Context):
         """Sync the / commands on discord."""
         await ctx.defer()
+        await ctx.send("Wait for it..")
         synced = await self.bot.tree.sync()
         await ctx.send("Sync OK")
         await ctx.send(f"✅ Sync OK ({len(synced)} commandes)")
