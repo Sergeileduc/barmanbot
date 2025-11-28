@@ -1,0 +1,10 @@
+services:
+  barmanbot:
+    container_name: barmanbot
+    build:
+      context: .
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    profiles: [dev, prod]
