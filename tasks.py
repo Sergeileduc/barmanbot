@@ -125,6 +125,14 @@ def run(c):
     c.run('python barmanbot.py')
 
 
+@task(name="prod")
+def compose_prod(c):
+    """Build et lance le bot avec le profil prod.
+    Attention, en cli, c'est 'inv compose-prod' avec un -
+    l'alias prod marche aussi donc c'est `inv prod`"""
+    c.run("docker-compose --profile prod up --build")
+
+
 @task
 def deploy(c):
     """Deploy bot on fly.io"""
