@@ -283,14 +283,12 @@ class LeMonde(BaseSlashCog):
 
     @dev_command(name="lemonde", description="Télécharge un article du Monde")
     @app_commands.describe(url="URL de l'article à télécharger",
-                           mobile="Activer le mode mobile",
-                           dark_mode="Activer le mode sombre"
+                           mode="Choisir mobile et/ou dark theme",
                            )
     async def lemonde(self,
                       interaction: discord.Interaction,
                       url: str,
-                      mobile: Literal["Oui", "Non"] = "Non",
-                      dark_mode: Literal["Oui", "Non"] = "Non",
+                      mode: Literal["Normal Clair", "Normal Dark", "Mobile Clair", "Mobile Dark"] = "Normal Clair",
                       ):
         """
         Télécharge un article depuis Lemonde.fr et l'affiche dans Discord.
@@ -307,6 +305,9 @@ class LeMonde(BaseSlashCog):
             - Utilise `to_bool()` pour convertir les paramètres en booléens.
         """
 
+        mobile: bool = "Mobile" in mode
+        dark_mode: bool = "Dark" in mode
+
         await interaction.response.defer(ephemeral=False)
 
         # Log pour debug
@@ -322,8 +323,8 @@ class LeMonde(BaseSlashCog):
         while _tries:
             try:
                 my_article: MyArticle = await get_article(url=url,
-                                                          mobile=to_bool(mobile),
-                                                          dark_mode=to_bool(dark_mode))
+                                                          mobile=mobile,
+                                                          dark_mode=dark_mode)
                 logger.info("out file ok")
                 break
             except asyncio.exceptions.TimeoutError:
