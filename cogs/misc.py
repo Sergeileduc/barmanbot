@@ -33,13 +33,14 @@ class Misc(commands.Cog):
     @commands.hybrid_command(name="sync_cleanup", description="Purge et resynchronise toutes les commandes slash")
     @commands.has_any_role("modo", "Admin")
     async def sync_cleanup(self, interaction: Interaction):
+        await interaction.response.defer(ephemeral=False)
         try:
             # Supprime toutes les commandes locales
             self.bot.tree.clear_commands()
             await self.bot.tree.sync()
-            await interaction.response.send_message("✅ Commandes globales purgées et resynchronisées.", ephemeral=True)
+            await interaction.followup.send("✅ Commandes globales purgées et resynchronisées.", ephemeral=True)
         except Exception as e:
-            await interaction.response.send_message(f"⚠️ Échec du nettoyage : {e}", ephemeral=True)
+            await interaction.followup.send(f"⚠️ Échec du nettoyage : {e}", ephemeral=True)
 
     @commands.command(name="sync_here")
     @commands.has_permissions(administrator=True)
