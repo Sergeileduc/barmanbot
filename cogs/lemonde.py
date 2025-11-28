@@ -316,6 +316,7 @@ class LeMonde(BaseSlashCog):
         # Retry
         _tries, _delay = TRIES, DELAY
 
+        await interaction.followup.send("⏳ Traitement en cours…", ephemeral=False)
         # While loop to retry fetching article, in case of Timeout errors
         while _tries:
             try:
