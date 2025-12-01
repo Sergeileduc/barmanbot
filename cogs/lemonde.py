@@ -15,8 +15,10 @@ from typing import Optional
 
 from utils.base_cog import BaseSlashCog
 from utils.decorators import dev_command
-from utils.tools import to_bool
+# from utils.tools import to_bool
 from utils.discord_types import Literal
+
+from python_web_tools_sl import select_tag
 
 # from reretry import retry
 
@@ -141,12 +143,6 @@ def _new_delay(max_delay, backoff, jitter, delay):
         delay = min(delay, max_delay)
 
     return delay
-
-
-def select_tag(soup: BeautifulSoup, selector: str) -> dict:
-    """Select tag in soup and return dict (name:value)."""
-    items = soup.select(selector)
-    return {i['name']: i['value'] for i in items if i.has_attr('name') if i.has_attr('value')}
 
 
 def remove_bloasts(css_list: list[str], article: Tag):

@@ -6,3 +6,4 @@ aiohttp
 google-api-python-client
 dateparser
 requests-htmlc
+git+https://github.com/Sergeileduc/python-web-tools.git@main
