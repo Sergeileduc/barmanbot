@@ -149,3 +149,9 @@ def discord_restart(c):
     # Relance Discord via Update.exe
     c.run(r'%LocalAppData%\Discord\Update.exe --processStart Discord.exe', hide=True)
     print("✅ Discord redémarré.")
+
+
+@task
+def stop(c):
+    """Arrête et nettoie les conteneurs du profil prod."""
+    c.run("docker-compose --profile prod down")
