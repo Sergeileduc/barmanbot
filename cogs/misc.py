@@ -1,7 +1,7 @@
 """Miscs cog."""
 import logging
 
-from discord import Interaction
+from discord import Interaction  # noqa: F401
 from discord.ext import commands
 
 logger = logging.getLogger(__name__)
