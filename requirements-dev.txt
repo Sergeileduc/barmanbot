@@ -1,2 +1,7 @@
 invoke
+black
+isort
+mypy
 flake8
+coverage
+pytest
