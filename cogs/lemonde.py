@@ -1,6 +1,6 @@
 """Lemonde -> PDF cog."""
-from discord import app_commands, Interaction
-from discord.ext import commands
+from discord import app_commands, Interaction  # noqa: F401
+from discord.ext import commands  # noqa: F401
 from bs4 import BeautifulSoup, Tag
 import pdfkit
 import discord
@@ -18,7 +18,7 @@ from utils.decorators import dev_command
 # from utils.tools import to_bool
 from utils.discord_types import Literal
 
-from python_web_tools_sl import select_tag
+from python_web_tools_sl import amake_soup, extract_name_value_pairs
 
 # from reretry import retry
 
@@ -205,14 +205,16 @@ async def get_article(url: str, mobile: bool = False, dark_mode: bool = False) -
         IOError: if wkhtmltopdf fails, it raises IOError
     """
     session = aiohttp.ClientSession(headers=headers)
-    # Login
-    r = await session.get(LOGIN_URL)
-    soup: BeautifulSoup = BeautifulSoup(await r.text(), "html.parser")
+    # LOGIN
+    # fetch login page and retrive form (email, password, etc.)
+    soup: BeautifulSoup = await amake_soup(LOGIN_URL, session=session)
     form = soup.select_one('form[method="post"]')
-    payload = select_tag(form, "input")
+    # Make payload.
+    payload = extract_name_value_pairs(form, "input")
     email = os.getenv("LEMONDE_EMAIL")
     payload['email'] = email
     payload['password'] = os.getenv("LEMONDE_PASSWD")
+    # send payload
     rp = await session.post(LOGIN_URL, data=payload)
     if rp.status != 200 or email not in await rp.text():
         raise ValueError("Wrong login")
