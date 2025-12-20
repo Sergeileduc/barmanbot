@@ -5,3 +5,4 @@ mypy
 flake8
 coverage
 pytest
+pre-commit
