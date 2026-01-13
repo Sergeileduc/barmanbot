@@ -83,7 +83,7 @@ async def on_ready():
     logging.info("Logged in as")
     logging.info(bot.user.name)
     logging.info(bot.user.id)
-    # await bot.tree.sync()
+    await bot.tree.sync()
 
 
 @bot.event

@@ -10,6 +10,8 @@ from platform import uname
 
 from invoke.tasks import task
 
+# mypy: ignore-errors
+
 # TASKS------------------------------------------------------------------------
 
 

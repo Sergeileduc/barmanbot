@@ -4,16 +4,13 @@ import asyncio
 import logging
 import os
 import random
-from dataclasses import dataclass
 from typing import Literal
 
-import aiohttp
 import discord
-import pdfkit
-from bs4 import BeautifulSoup, Tag
 from discord import Interaction, app_commands  # noqa: F401
 from discord.ext import commands  # noqa: F401
-from python_web_tools_sl import amake_soup, extract_name_value_pairs
+from dotenv import load_dotenv
+from lemonde_sl import LeMondeAsync, MyArticle
 
 from utils.base_cog import BaseSlashCog
 from utils.decorators import dev_command
@@ -41,100 +38,6 @@ BACKOFF = 1.2
 # JITTER = 0
 JITTER = (0, 1)
 
-# Bloats in HTML
-CSS_BLOATS = [
-    ".meta__social",
-    "ul.breadcrumb",
-    "section.article__reactions",
-    "section.friend",
-    "section.article__siblings",
-    "aside.aside__iso.old__aside",
-    "section.inread",
-]
-
-
-def build_pdf_html(fragment: str, mobile: bool = False, dark: bool = False) -> tuple[str, dict]:
-    """
-    Construit un HTML complet + options PDFkit selon le format et le thème.
-
-    Args:
-        fragment (str): Contenu HTML à insérer dans le <body>.
-        format (str): "A4" ou "mobile"
-        dark (bool): True pour thème sombre, False pour thème clair
-
-    Returns:
-        tuple: (html_str, pdfkit_options)
-    """
-    # Configs de base
-    if mobile:
-        page_size = "A6"
-        margin_mm = 7 if not dark else 0
-        padding_mm = 0 if not dark else 7
-    else:
-        page_size = "A4"
-        margin_mm = 20 if not dark else 0
-        padding_mm = 0 if not dark else 20
-
-    # Options PDFkit
-    options = {
-        "page-size": page_size,
-        "margin-top": f"{margin_mm}mm",
-        "margin-right": f"{margin_mm}mm",
-        "margin-bottom": f"{margin_mm}mm",
-        "margin-left": f"{margin_mm}mm",
-        "encoding": "UTF-8",
-        "no-outline": None,
-        "custom-header": [("Accept-Encoding", "gzip")],
-        "enable-local-file-access": "",
-    }
-
-    # CSS selon thème
-    if dark:
-        css = f"""
-        <style>
-        html {{
-            background: #121212;
-        }}
-        body {{
-            background: transparent;
-            color: #e0e0e0;
-            margin: 0;
-            padding: {padding_mm}mm;
-            font-family: sans-serif;
-            font-size: 12pt;
-            line-height: 1.6;
-            box-sizing: border-box;
-        }}
-        a {{ color: #90caf9; }}
-        img {{ filter: brightness(0.8) contrast(1.2); max-width: 100%; height: auto; }}
-        </style>
-        """
-    else:
-        css = """
-            <style>
-            body {
-                font-family: sans-serif;
-                font-size: 12pt;
-                line-height: 1.6;
-            }
-            </style>
-        """
-
-    # HTML complet
-    html = f"""
-    <html>
-    <head>
-    <meta charset="UTF-8">
-    {css}
-    </head>
-    <body>
-    {fragment}
-    </body>
-    </html>
-    """
-
-    return html.strip(), options
-
 
 def _new_delay(max_delay, backoff, jitter, delay):
     delay *= backoff
@@ -146,140 +49,54 @@ def _new_delay(max_delay, backoff, jitter, delay):
     return delay
 
 
-def remove_bloasts(css_list: list[str], article: Tag):
-    "Remove some bloats in the article soup."
-    for c in css_list:
-        try:
-            list_elements = article.select(c)
-            for elem in list_elements:
-                elem.decompose()  # remove some bloats
-                logger.debug("Element %s decomposed", c)
-        except AttributeError:
-            logger.info("FAILS to remove %s bloat in the article. Pass.", c)
+async def get_article(url: str, mobile: bool, dark_mode: bool) -> MyArticle:
+    """
+    Fetch and generate a PDF version of a Le Monde article using the library's
+    asynchronous client.
 
-
-def fix_images_urls(article: BeautifulSoup) -> None:
-    """Fixes image URLs in the provided article by updating the 'src' attribute.
-
-    This function scans the article for image tags and updates their 'src'
-    attributes based on the 'data-srcset' attribute. It ensures that the images
-    are correctly referenced for display.
+    This helper function encapsulates the interaction with ``LeMondeAsync`` so
+    that the Discord bot does not need to manage the client lifecycle, login
+    details, or PDF generation logic directly. Centralizing this logic keeps the
+    bot code clean, makes error handling consistent, and allows the underlying
+    implementation to evolve without requiring changes in the bot.
 
     Args:
-        article (BeautifulSoup): The BeautifulSoup object representing
-        the article from which to fix image URLs.
+        url (str): The URL of the Le Monde article to fetch.
+        mobile (bool): Whether to render the article using the mobile layout
+            (A6 format, reduced margins).
+        dark_mode (bool): Whether to apply the dark theme to the generated PDF.
 
     Returns:
-        None
+        MyArticle: A structured result containing:
+            - ``path``: Path to the generated PDF file.
+            - ``success``: Whether the PDF was generated without fatal errors.
+            - ``warning``: Optional warning message (e.g., multimedia removed).
+
+    Notes:
+        This function exists to decouple the bot from the internal details of
+        the Le Monde scraping and PDF generation pipeline. It provides a stable
+        interface for the bot, while allowing the library to change its internal
+        behavior (authentication, HTML parsing, fallback strategies, etc.)
+        without requiring modifications in the bot code.
     """
 
-    imgs = article.select("img")
-    for im in imgs:
-        if im.has_attr("data-srcset"):
-            srcset = im["data-srcset"]
-            tmpsrc = srcset.split(",")
-            for tmp in tmpsrc:
-                if "664w" in tmp or "1x" in tmp:
-                    url_im = tmp.strip().split(" ")[0]
-                    im["src"] = url_im
+    # Load environment variables (idempotent)
+    load_dotenv()
 
+    EMAIL = os.getenv("LM_SL_EMAIL")
+    PASSWORD = os.getenv("LM_SL_PASSWD")
 
-@dataclass
-class MyArticle:
-    path_to_file: str
-    error: str | None = None
+    if not EMAIL or not PASSWORD:
+        raise RuntimeError("Missing LM_SL_EMAIL or LM_SL_PASSWD in environment")
 
-
-# @retry(asyncio.exceptions.TimeoutError, tries=10, delay=2, backoff=1.2, jitter=(0, 1))
-async def get_article(url: str, mobile: bool = False, dark_mode: bool = False) -> MyArticle | None:
-    """Get the article from the URL
-
-    Args:
-        url (str): url of article to be fetched
-        mobile (bool): is the PDF is for mobile ? default is False.
-        dark_mode (bool): is the PDF in dark mode ? default is False
-
-    Returns:
-        MyArticle | None
-    Raises:
-        IOError: if wkhtmltopdf fails, it raises IOError
-    """
-    session = aiohttp.ClientSession(headers=headers)
-    # LOGIN
-    # fetch login page and retrive form (email, password, etc.)
-    soup: BeautifulSoup = await amake_soup(LOGIN_URL, session=session)
-    form = soup.select_one('form[method="post"]')
-    # Make payload.
-    payload = extract_name_value_pairs(form, "input")
-    email = os.getenv("LEMONDE_EMAIL")
-    payload["email"] = email
-    payload["password"] = os.getenv("LEMONDE_PASSWD")
-    # debug
-    logger.debug("Payload for login : %s", payload)
-    for k, v in payload.items():
-        print(f"{k} : {v}")
-
-    # send payload
-    rp = await session.post(LOGIN_URL, data=payload)
-    if rp.status != 200 or email not in await rp.text():
-        raise ValueError("Wrong login")
-    else:
-        logger.info("Login was ok")
-    await asyncio.sleep(random.uniform(2.0, 3.0))
-
-    html = None
-    # Fetch article and print in PDF
-    try:
-        r = await session.get(url, headers=headers, timeout=6)
-        logger.info("status : %s", r.status)
-        html = await r.text()
-        logger.info("Get was ok")
-    except asyncio.exceptions.TimeoutError:
-        logger.warning("Timeout !")
-        raise
-    finally:
-        await session.close()
-
-    if html:
-        logger.info("Ok, doing some magic on HTML")
-        soup = BeautifulSoup(html, "html.parser")
-        article = soup.select_one("main > .article--content")
-        # article = soup.select_one("section.zone--article")
-        # article = soup.select_one(".zone.zone--article")
-        remove_bloasts(CSS_BLOATS, article)
-        fix_images_urls(article)
-        # ------------
-        article, options = build_pdf_html(article, mobile=mobile, dark=dark_mode)
-
-        # --------------------
-        full_name = url.rsplit("/", 1)[-1]
-        out_file: str = f"{os.path.splitext(full_name)[0]}.pdf"
-        logger.info("Ok, making the pdf now.")
-
-        try:
-            pdfkit.from_string(str(article), out_file, options=options)
-            logger.info("Returning file")
-            return MyArticle(out_file)
-        except OSError as e:
-            logger.error("wkhtml a eu un problème")
-            logger.error(e)
-            logger.error("on va essayer d'enlever les media-embed")
-            remove_bloasts(
-                [
-                    "div.multimedia-embed",
-                ],
-                article,
-            )
-            pdfkit.from_string(str(article), out_file, options=options)
-            logger.info("Returning file")
-            return MyArticle(
-                out_file,
-                error=(
-                    "Article contenant du multimédia que le bot a supprimé, "
-                    "article probablement incomplet."
-                ),
-            )
-    return None
+    async with LeMondeAsync() as lm:
+        return await lm.fetch_pdf(
+            url=url,
+            email=EMAIL,
+            password=PASSWORD,
+            mobile=mobile,
+            dark=dark_mode,
+        )
 
 
 # class LeMonde(commands.Cog):
@@ -307,7 +124,7 @@ class LeMonde(BaseSlashCog):
         mode: Literal[
             "Normal Clair", "Normal Dark", "Mobile Clair", "Mobile Dark"
         ] = "Normal Clair",
-    ):
+    ) -> None:
         """
         Télécharge un article depuis Lemonde.fr et l'affiche dans Discord.
 
@@ -370,10 +187,10 @@ class LeMonde(BaseSlashCog):
 
         try:
             # await interaction.followup.send(content=url)
-            await interaction.followup.send(file=discord.File(my_article.path_to_file))
-            if my_article.error:
-                await interaction.followup.send(my_article.error)
-            os.remove(my_article.path_to_file)
+            await interaction.followup.send(file=discord.File(my_article.path))
+            if my_article.has_warning:
+                await interaction.followup.send(my_article.warning)
+            os.remove(my_article.path)
         except (TypeError, FileNotFoundError):
             await interaction.followup.send("Echec de la commande. Réessayez, peut-être ?")
         finally:
@@ -381,7 +198,7 @@ class LeMonde(BaseSlashCog):
             logger.info("------------------")
 
 
-async def setup(bot):
+async def setup(bot) -> None:
     """
     Sets up the LeMonde cog for the provided Discord bot instance.
 

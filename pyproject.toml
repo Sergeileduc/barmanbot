@@ -20,19 +20,20 @@ requires-python = ">=3.13"
 
 # Dépendances runtime (si ton package en a)
 dependencies = [
-    "bs4",
+    # "bs4",
     "dateparser",
     "discord",
     "dotenv",
     "rich",
-    "httpx",
-    "selectolax",
+    # "httpx",
+    # "selectolax",
     "pdfkit",
-    "playwright",
-    "requests_html",
-    "lxml_html_clean",
+    # "playwright",
+    # "requests_html",
+    # "lxml_html_clean",
     "google-api-python-client",
     "python-web-tools-sl @ git+https://github.com/Sergeileduc/python-web-tools.git",
+    "lemonde-sl @ git+https://github.com/Sergeileduc/lemonde-sl.git",
 ]
 
 # Classifiers PyPI (bonne pratique)
