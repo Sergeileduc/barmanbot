@@ -29,6 +29,9 @@ dependencies = [
     "selectolax",
     "pdfkit",
     "playwright",
+    "requests_html",
+    "lxml_html_clean",
+    "google-api-python-client",
     "python-web-tools-sl @ git+https://github.com/Sergeileduc/python-web-tools.git",
 ]
 

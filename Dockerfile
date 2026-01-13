@@ -15,12 +15,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ÉTAPE X: Installation des dépendances Python
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml /app/
+COPY . /app/
+RUN pip install --no-cache-dir .
 
 # ÉTAPE X : Télécharge et installe les binaires des navigateurs (Chromium ici)
-RUN python -m playwright install --with-deps chromium
+# RUN python -m playwright install --with-deps chromium
 
-COPY . /app/
+# COPY . /app/
 
 ENTRYPOINT ["python", "barmanbot.py"]

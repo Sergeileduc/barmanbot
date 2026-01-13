@@ -157,6 +157,12 @@ def doc(c):
     webbrowser.open(path.resolve().as_uri())
 
 
+@task
+def dockerrun(c):
+    """Run docker"""
+    c.run("docker run --rm -it -v ${PWD}/.env:/app/.env barmanbot", echo=True)
+
+
 # UTILS -----------------------------------------------------------------------
 
 
