@@ -1,7 +1,8 @@
-from discord.ext import commands
-from discord import app_commands, Object
-import os
 import logging
+import os
+
+from discord import Object, app_commands
+from discord.ext import commands
 
 logger = logging.getLogger(__name__)
 DEV_MODE = os.getenv("DEV_MODE") == "1"
@@ -27,7 +28,7 @@ class BaseSlashCog(commands.Cog):
             - Se contente de synchroniser globalement les commandes décorées avec `@app_commands.command`.
 
         Cette méthode est appelée automatiquement lors du chargement du cog.
-        """
+        """  # noqa: E501
         for attr_name in dir(self):
             if attr_name.startswith("_"):
                 continue
@@ -59,7 +60,7 @@ class BaseSlashCog(commands.Cog):
             - Les commandes décorées avec `@app_commands.command` sont propagées à toutes les guilds (avec délai Discord)
 
         Cette méthode est appelée explicitement dans `cog_load()` et n'est pas un hook Discord.py.
-        """
+        """  # noqa: E501
         try:
             if DEV_MODE and self._dev_guilds:
                 for guild_id in self._dev_guilds:

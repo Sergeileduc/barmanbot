@@ -1,14 +1,13 @@
-from playwright.async_api import async_playwright, TimeoutError
-
 import asyncio
 import logging
 
 from bs4 import BeautifulSoup
+from playwright.async_api import TimeoutError, async_playwright
 from requests_html import AsyncHTMLSession
 
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
-    }
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",  # noqa: E501
+}
 
 
 def to_bool(value: str, strict: bool = True) -> bool:
@@ -50,8 +49,7 @@ def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     if not logger.handlers:
         handler = logging.StreamHandler()
         formatter = logging.Formatter(
-            fmt="%(asctime)s - %(levelname)s - %(message)s",
-            datefmt="%H:%M:%S"
+            fmt="%(asctime)s - %(levelname)s - %(message)s", datefmt="%H:%M:%S"
         )
         handler.setFormatter(formatter)
         logger.addHandler(handler)
@@ -71,28 +69,31 @@ async def get_soup(url: str) -> BeautifulSoup:
 
 async def fetch(url: str) -> str:
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)  # headless=True si tu veux rester invisible
+        browser = await p.chromium.launch(
+            headless=True
+        )  # headless=True si tu veux rester invisible
         context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-            locale="fr-FR"
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",  # noqa: E501
+            locale="fr-FR",
         )
 
         # Enlève le flag webdriver
-        await context.add_init_script("""
+        await context.add_init_script(
+            """
         Object.defineProperty(navigator, 'webdriver', {
             get: () => undefined
         });
-        """)
+        """
+        )
 
         # Ajoute des headers réalistes
-        await context.set_extra_http_headers({
-            "Accept-Language": "fr-FR,fr;q=0.9",
-            "Referer": "https://www.google.com"
-        })
+        await context.set_extra_http_headers(
+            {"Accept-Language": "fr-FR,fr;q=0.9", "Referer": "https://www.google.com"}
+        )
 
         page = await context.new_page()
         await page.goto(url, timeout=50000)  # 50s timeout
-        await page.wait_for_timeout(10000)    # sleep=10s pour laisser le JS s'exécuter
+        await page.wait_for_timeout(10000)  # sleep=10s pour laisser le JS s'exécuter
 
         # Tu peux aussi simuler un scroll ou un clic si nécessaire
         await page.mouse.move(100, 100)
@@ -122,9 +123,11 @@ async def get_soup_hack(url: str) -> BeautifulSoup:
 
 
 if __name__ == "__main__":
+
     async def main():
         url = "https://www.jeuxvideo.com/jeux/sorties/machine-10/annee-2025/mois-10/"
         # url = "https://bot.sannysoft.com/"
         soup = await get_soup_hack(url)
         print(soup.prettify())
+
     asyncio.run(main())

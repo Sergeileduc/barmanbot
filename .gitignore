@@ -30,3 +30,6 @@ cov.xml
 .hypothesis/
 .pytest_cache/
 google.json
+
+# Caches
+.ruff_cache/

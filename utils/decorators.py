@@ -1,6 +1,7 @@
-from functools import wraps
 import os
-from discord import app_commands, Object
+from functools import wraps  # noqa: F401
+
+from discord import Object, app_commands
 
 DEV_MODE = os.getenv("DEV_MODE", "").strip().lower() in ("1", "true", "yes", "on")
 DEV_GUILD_ID = int(os.getenv("DEV_GUILD_ID", "0"))
@@ -26,8 +27,9 @@ def dev_command(**kwargs):
         async def ping(self, interaction: discord.Interaction):
             await interaction.response.send_message("Pong!")
 
-    Auteur : Serge
-    """
+    Auteur : Sergeileduc
+    """  # noqa: E501
+
     def wrapper(func):
         # Crée la commande comme d’habitude
         cmd = app_commands.command()(func)
@@ -35,4 +37,5 @@ def dev_command(**kwargs):
         # Injecte l’attribut _dev_guild utilisé par BaseSlashCog
         cmd._dev_guild = Object(id=DEV_GUILD_ID)
         return cmd
+
     return wrapper

@@ -13,8 +13,7 @@ Ces types sont conçus pour être importés dans les cogs et utilisés directeme
 dans les signatures de commandes Discord.
 
 Auteur : Serge
-"""
-
+"""  # noqa: E501
 
 from typing import Literal
 

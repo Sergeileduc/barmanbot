@@ -1,17 +1,17 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 """JV cog."""
 
-import logging
-from typing import Callable, Awaitable, List
-from urllib.parse import urljoin
 import asyncio
 import contextlib
+import logging
 import re
+from collections.abc import Awaitable, Callable
 from datetime import date, timedelta
-from dateparser.date import DateDataParser
+from urllib.parse import urljoin
+
 from bs4 import BeautifulSoup, Tag
-from discord import Embed, Interaction, ButtonStyle
+from dateparser.date import DateDataParser
+from discord import ButtonStyle, Embed, Interaction
 from discord.ext import commands
 from discord.ui import Button, View
 
@@ -20,8 +20,8 @@ from utils.tools import get_soup_hack
 logger = logging.getLogger(__name__)
 
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
-    }
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",  # noqa: E501
+}
 ddp = DateDataParser(languages=["fr"])
 
 DAY = timedelta(days=1)
@@ -73,7 +73,7 @@ class NewGame:
         """
 
         try:
-            date_str = re.sub('Sortie: ', '', release)
+            date_str = re.sub("Sortie: ", "", release)
             return ddp.get_date_data(date_str).date_obj.date()
         except AttributeError:
             return date(3000, 1, 1)
@@ -83,11 +83,9 @@ class NewGame:
 
 
 class TimeButton(Button):
-    """Class for the buttons 'Jour', 'Semaine', 'Mois'
-    """
+    """Class for the buttons 'Jour', 'Semaine', 'Mois'"""
 
-    def __init__(self, label: str, row: int,
-                 delta: timedelta, embedtitle: str) -> None:
+    def __init__(self, label: str, row: int, delta: timedelta, embedtitle: str) -> None:
         """Each button has his own label, row, timedelta and embed title"""
         super().__init__(label=label, row=row)
         self.delta = delta
@@ -189,7 +187,7 @@ def generate_url(month: int, year: int, platform=None) -> str:
 
     Returns:
         str: A formatted URL string for the release calendar, or None if the platform is unsupported.
-    """
+    """  # noqa: E501
 
     # french_months = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin',
     #                  'juillet', 'aout',
@@ -266,6 +264,7 @@ def _get_platform(tag: Tag) -> str:
 #         return date_span.get_text(strip=True)
 #     return None
 
+
 def _extract_game_href(html: Tag) -> str | None:
     """get the partial URL of a video game (in the div)
 
@@ -312,9 +311,8 @@ async def scrape_page(soup: BeautifulSoup) -> list[NewGame]:
 
 
 async def scrape_all_pages(
-    start_url: str,
-    process_page_callback: Callable[[BeautifulSoup], Awaitable[List]]
-) -> List:
+    start_url: str, process_page_callback: Callable[[BeautifulSoup], Awaitable[list]]
+) -> list:
     """Parcourt toutes les pages d'une pagination à partir d'une URL complète (version async).
 
     Args:
@@ -324,7 +322,7 @@ async def scrape_all_pages(
 
     Returns:
         List: Une liste contenant tous les éléments extraits de toutes les pages.
-    """
+    """  # noqa: E501
     current_url = start_url
     visited = set()
     all_results = []
@@ -340,20 +338,19 @@ async def scrape_all_pages(
         else:
             logger.info("⚠️ La fonction de traitement n'a pas retourné une liste.")
 
-        next_link = soup.select_one('.pagination__button--next')
-        if next_link and 'href' in next_link.attrs:
-            current_url = urljoin(current_url, next_link['href'])
+        next_link = soup.select_one(".pagination__button--next")
+        if next_link and "href" in next_link.attrs:
+            current_url = urljoin(current_url, next_link["href"])
         else:
             current_url = None
 
     return all_results
 
 
-async def fetch_month(url) -> List[NewGame]:
+async def fetch_month(url) -> list[NewGame]:
     """Fetch all games in a month, even if there are several pages."""
     logger.debug("fetch_month url : %s", url)
-    return await scrape_all_pages(start_url=url,
-                                  process_page_callback=scrape_page)
+    return await scrape_all_pages(start_url=url, process_page_callback=scrape_page)
 
 
 async def fetch_time_delta(delta: timedelta, platform: str = None):
@@ -369,8 +366,7 @@ async def fetch_time_delta(delta: timedelta, platform: str = None):
     new_month, new_year = next_month(int_month, int_year)
     url = generate_url(new_month, new_year, platform=platform)
     games += await fetch_month(url)
-    return [game for game in games
-            if (diff := game.date - today) <= delta and diff.days >= 0]
+    return [game for game in games if (diff := game.date - today) <= delta and diff.days >= 0]
 
 
 class JV(commands.Cog):
@@ -438,4 +434,5 @@ if __name__ == "__main__":
         results = await fetch_time_delta(delta=MONTH, platform="PC")
         for r in results:
             print(r)
+
     asyncio.run(main())

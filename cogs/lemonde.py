@@ -1,24 +1,25 @@
 """Lemonde -> PDF cog."""
-from discord import app_commands, Interaction  # noqa: F401
-from discord.ext import commands  # noqa: F401
-from bs4 import BeautifulSoup, Tag
-import pdfkit
-import discord
-import aiohttp
+
 import asyncio
 import logging
 import os
-
 import random
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal
+
+import aiohttp
+import discord
+import pdfkit
+from bs4 import BeautifulSoup, Tag
+from discord import Interaction, app_commands  # noqa: F401
+from discord.ext import commands  # noqa: F401
+from python_web_tools_sl import amake_soup, extract_name_value_pairs
 
 from utils.base_cog import BaseSlashCog
 from utils.decorators import dev_command
-# from utils.tools import to_bool
-from utils.discord_types import Literal
 
-from python_web_tools_sl import amake_soup, extract_name_value_pairs
+# from utils.tools import to_bool
+# from utils.discord_types import LiteralBool
 
 # from reretry import retry
 
@@ -29,7 +30,7 @@ logger.setLevel(logging.INFO)
 LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
 
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",  # noqa: E501
 }
 
 # Retry
@@ -49,7 +50,7 @@ CSS_BLOATS = [
     "section.article__siblings",
     "aside.aside__iso.old__aside",
     "section.inread",
-    ]
+]
 
 
 def build_pdf_html(fragment: str, mobile: bool = False, dark: bool = False) -> tuple[str, dict]:
@@ -76,15 +77,15 @@ def build_pdf_html(fragment: str, mobile: bool = False, dark: bool = False) -> t
 
     # Options PDFkit
     options = {
-        'page-size': page_size,
-        'margin-top': f'{margin_mm}mm',
-        'margin-right': f'{margin_mm}mm',
-        'margin-bottom': f'{margin_mm}mm',
-        'margin-left': f'{margin_mm}mm',
-        'encoding': "UTF-8",
-        'no-outline': None,
-        'custom-header': [('Accept-Encoding', 'gzip')],
-        'enable-local-file-access': "",
+        "page-size": page_size,
+        "margin-top": f"{margin_mm}mm",
+        "margin-right": f"{margin_mm}mm",
+        "margin-bottom": f"{margin_mm}mm",
+        "margin-left": f"{margin_mm}mm",
+        "encoding": "UTF-8",
+        "no-outline": None,
+        "custom-header": [("Accept-Encoding", "gzip")],
+        "enable-local-file-access": "",
     }
 
     # CSS selon thème
@@ -186,11 +187,10 @@ def fix_images_urls(article: BeautifulSoup) -> None:
 @dataclass
 class MyArticle:
     path_to_file: str
-    error: Optional[str] = None
+    error: str | None = None
+
 
 # @retry(asyncio.exceptions.TimeoutError, tries=10, delay=2, backoff=1.2, jitter=(0, 1))
-
-
 async def get_article(url: str, mobile: bool = False, dark_mode: bool = False) -> MyArticle | None:
     """Get the article from the URL
 
@@ -212,8 +212,13 @@ async def get_article(url: str, mobile: bool = False, dark_mode: bool = False) -
     # Make payload.
     payload = extract_name_value_pairs(form, "input")
     email = os.getenv("LEMONDE_EMAIL")
-    payload['email'] = email
-    payload['password'] = os.getenv("LEMONDE_PASSWD")
+    payload["email"] = email
+    payload["password"] = os.getenv("LEMONDE_PASSWD")
+    # debug
+    logger.debug("Payload for login : %s", payload)
+    for k, v in payload.items():
+        print(f"{k} : {v}")
+
     # send payload
     rp = await session.post(LOGIN_URL, data=payload)
     if rp.status != 200 or email not in await rp.text():
@@ -237,7 +242,7 @@ async def get_article(url: str, mobile: bool = False, dark_mode: bool = False) -
 
     if html:
         logger.info("Ok, doing some magic on HTML")
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         article = soup.select_one("main > .article--content")
         # article = soup.select_one("section.zone--article")
         # article = soup.select_one(".zone.zone--article")
@@ -247,7 +252,7 @@ async def get_article(url: str, mobile: bool = False, dark_mode: bool = False) -
         article, options = build_pdf_html(article, mobile=mobile, dark=dark_mode)
 
         # --------------------
-        full_name = url.rsplit('/', 1)[-1]
+        full_name = url.rsplit("/", 1)[-1]
         out_file: str = f"{os.path.splitext(full_name)[0]}.pdf"
         logger.info("Ok, making the pdf now.")
 
@@ -255,14 +260,25 @@ async def get_article(url: str, mobile: bool = False, dark_mode: bool = False) -
             pdfkit.from_string(str(article), out_file, options=options)
             logger.info("Returning file")
             return MyArticle(out_file)
-        except IOError as e:
+        except OSError as e:
             logger.error("wkhtml a eu un problème")
             logger.error(e)
             logger.error("on va essayer d'enlever les media-embed")
-            remove_bloasts(["div.multimedia-embed",], article)
+            remove_bloasts(
+                [
+                    "div.multimedia-embed",
+                ],
+                article,
+            )
             pdfkit.from_string(str(article), out_file, options=options)
             logger.info("Returning file")
-            return MyArticle(out_file, error="Article contenant du multimédia que le bot a supprimé, article probablement incomplet.")
+            return MyArticle(
+                out_file,
+                error=(
+                    "Article contenant du multimédia que le bot a supprimé, "
+                    "article probablement incomplet."
+                ),
+            )
     return None
 
 
@@ -280,14 +296,18 @@ class LeMonde(BaseSlashCog):
         super().__init__(bot)
 
     @dev_command(name="lemonde", description="Télécharge un article du Monde")
-    @app_commands.describe(url="URL de l'article à télécharger",
-                           mode="Choisir mobile et/ou dark theme",
-                           )
-    async def lemonde(self,
-                      interaction: discord.Interaction,
-                      url: str,
-                      mode: Literal["Normal Clair", "Normal Dark", "Mobile Clair", "Mobile Dark"] = "Normal Clair",
-                      ):
+    @app_commands.describe(
+        url="URL de l'article à télécharger",
+        mode="Choisir mobile et/ou dark theme",
+    )
+    async def lemonde(
+        self,
+        interaction: discord.Interaction,
+        url: str,
+        mode: Literal[
+            "Normal Clair", "Normal Dark", "Mobile Clair", "Mobile Dark"
+        ] = "Normal Clair",
+    ):
         """
         Télécharge un article depuis Lemonde.fr et l'affiche dans Discord.
 
@@ -309,20 +329,23 @@ class LeMonde(BaseSlashCog):
         await interaction.response.defer(ephemeral=False)
 
         # Log pour debug
-        logger.info(f"Commande /lemonde appelée avec url={url}, mobile={mobile}, dark_mode={dark_mode}")
-        await interaction.followup.send(f"📄 Article: {url}\n📱 Mobile: {mobile}\n🌙 Mode sombre: {dark_mode}")
+        logger.info(
+            f"Commande /lemonde appelée avec url={url}, mobile={mobile}, dark_mode={dark_mode}"
+        )
+        await interaction.followup.send(
+            f"📄 Article: {url}\n📱 Mobile: {mobile}\n🌙 Mode sombre: {dark_mode}"
+        )
 
         # Retry
         _tries, _delay = TRIES, DELAY
 
-        msg_wait = await interaction.followup.send("⏳ Traitement en cours…",
-                                                   ephemeral=False)
+        msg_wait = await interaction.followup.send("⏳ Traitement en cours…", ephemeral=False)
         # While loop to retry fetching article, in case of Timeout errors
         while _tries:
             try:
-                my_article: MyArticle = await get_article(url=url,
-                                                          mobile=mobile,
-                                                          dark_mode=dark_mode)
+                my_article: MyArticle = await get_article(
+                    url=url, mobile=mobile, dark_mode=dark_mode
+                )
                 logger.info("out file ok")
                 break
             except asyncio.exceptions.TimeoutError:
@@ -330,9 +353,11 @@ class LeMonde(BaseSlashCog):
                 _tries -= 1
                 logger.warning("Tries left = %d", _tries)
 
-                error_message = ("Erreur : Timeout. "
-                                 f"Tentative {TRIES - _tries}/{TRIES} échec - "
-                                 f"Nouvel essai dans {_delay:.2f} secondes...")
+                error_message = (
+                    "Erreur : Timeout. "
+                    f"Tentative {TRIES - _tries}/{TRIES} échec - "
+                    f"Nouvel essai dans {_delay:.2f} secondes..."
+                )
                 delete_after = _delay + 1.9
                 await interaction.followup.send(error_message, delete_after=delete_after)
                 if not _tries:
@@ -377,7 +402,9 @@ async def setup(bot):
 if __name__ == "__main__":
     # Testing lemonde pdf
     import platform
+
     from dotenv import load_dotenv
+
     # Parse a .env file and then load all the variables found as environment variables.
     load_dotenv()
 
@@ -387,11 +414,11 @@ if __name__ == "__main__":
     # URL = "https://www.lemonde.fr/international/article/2024/10/03/face-a-l-iran-la-france-se-range-derriere-israel_6342763_3210.html"
     URL = "https://www.lemonde.fr/societe/article/2024/10/05/proces-des-viols-de-mazan-le-huis-clos-leve-les-accuses-maintiennent-leur-version-apres-le-visionnage-des-videos_6344040_3224.html"
     # URL = "https://www.lemonde.fr/les-decodeurs/article/2025/09/25/condamnation-de-nicolas-sarkozy-la-chronologie-complete-de-l-affaire-du-financement-libyen_6482596_4355771.html"
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     try:
         asyncio.run(get_article(URL, mobile=True, dark_mode=True))
-    except IOError as e:
-        logger.error("Erreur IOError")
+    except OSError as e:
+        logger.error("Erreur OSError")
         logger.error(e)

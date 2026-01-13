@@ -1,4 +1,5 @@
 """Miscs cog."""
+
 import logging
 
 from discord import Interaction  # noqa: F401
@@ -30,8 +31,12 @@ class Misc(commands.Cog):
         for cmd in self.bot.tree.get_commands():
             await ctx.send(f"Commande enregistrée: {cmd.name}")
 
-    # @app_commands.command(name="sync_cleanup", description="Purge et resynchronise toutes les commandes slash")
-    @commands.hybrid_command(name="sync_cleanup", description="Purge et resynchronise toutes les commandes slash")
+    # @app_commands.command(name="sync_cleanup",
+    #                       description="Purge et resynchronise toutes les commandes slash")
+    @commands.hybrid_command(
+        name="sync_cleanup",
+        description="Purge et resynchronise toutes les commandes slash",
+    )
     @commands.has_any_role("modo", "Admin")
     async def sync_cleanup(self, ctx: commands.Context):
         await ctx.defer()

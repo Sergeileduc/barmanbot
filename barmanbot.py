@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 """Awesome Discord Bot."""
+
 import argparse
 import asyncio
 import logging
@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 # import utils.tools
 
-PREFIX = '!'
+PREFIX = "!"
 
 # Parse a .env file and then load all the variables found as environment variables.
 load_dotenv()
@@ -27,16 +27,19 @@ logging.basicConfig(level=logging.INFO)
 
 # --debug option
 parser = argparse.ArgumentParser(description="Lancement du bot Discord")
-parser.add_argument("-d", "--debug",
-                    action="store_true", help="change prefix to '?'", )
-parser.add_argument("--dev",
-                    action="store_true", help="Activer le mode développement")
+parser.add_argument(
+    "-d",
+    "--debug",
+    action="store_true",
+    help="change prefix to '?'",
+)
+parser.add_argument("--dev", action="store_true", help="Activer le mode développement")
 args = parser.parse_args()
 
 if args.debug:
     logging.info("You are in debug mode.")
     logging.info("Prefix is now '?'")
-    PREFIX = '?'
+    PREFIX = "?"
 
 if args.dev:
     DEV_MODE = True
@@ -57,21 +60,27 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 
-bot = commands.Bot(command_prefix=PREFIX, help_command=None,
-                   description=None, case_insensitive=True, intents=intents)
+bot = commands.Bot(
+    command_prefix=PREFIX,
+    help_command=None,
+    description=None,
+    case_insensitive=True,
+    intents=intents,
+)
 
-cogs_ext_list = ["cogs.misc",
-                 "cogs.lemonde",
-                 "cogs.code",
-                 #  "cogs.jv",
-                 "cogs.youtube",
-                 ]
+cogs_ext_list = [
+    "cogs.misc",
+    "cogs.lemonde",
+    "cogs.code",
+    #  "cogs.jv",
+    "cogs.youtube",
+]
 
 
 @bot.event
 async def on_ready():
     """Log in Discord."""
-    logging.info('Logged in as')
+    logging.info("Logged in as")
     logging.info(bot.user.name)
     logging.info(bot.user.id)
     # await bot.tree.sync()
@@ -99,7 +108,7 @@ async def setup_hook():
 
 
 if __name__ == "__main__":
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     logging.info("New bot with discord.py version %s", discord.__version__)
     bot.run(TOKEN)
