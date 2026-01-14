@@ -1,4 +1,7 @@
+import asyncio
 import os
+import random
+from collections.abc import Awaitable, Callable
 from functools import wraps  # noqa: F401
 
 from discord import Object, app_commands
@@ -39,3 +42,79 @@ def dev_command(**kwargs):
         return cmd
 
     return wrapper
+
+
+def async_retry(
+    tries: int,
+    delay: float,
+    max_delay: float,
+    backoff: float,
+    jitter: tuple[float, float],
+    exceptions: tuple[type[BaseException], ...],
+    on_retry: Callable[[int, float, Exception], Awaitable[None]] | None = None,
+):
+    """
+    Retry decorator for asynchronous functions with exponential backoff and optional jitter.
+
+    This decorator retries an async function when it raises one of the specified
+    exceptions. Between each attempt, it waits for a delay that increases using
+    an exponential backoff strategy, optionally combined with jitter. An optional
+    asynchronous callback can be executed on each retry attempt (e.g., logging or
+    sending a notification).
+
+    Args:
+        tries (int):
+            Maximum number of attempts before giving up.
+        delay (float):
+            Initial delay (in seconds) before the first retry.
+        max_delay (float):
+            Maximum allowed delay between retries.
+        backoff (float):
+            Multiplicative factor applied to the delay after each attempt.
+        jitter (tuple (float, float)):
+            Additional randomization factor applied to the delay to avoid thundering herd.
+        exceptions (tuple[type[BaseException], ...]):
+            Exception types that should trigger a retry.
+        on_retry (Callable[[int, float, Exception], Awaitable[None]] | None):
+            Optional async callback executed on each retry. Receives:
+            - attempt number (starting at 1),
+            - current delay,
+            - the caught exception.
+
+    Returns:
+        Callable:
+            A wrapped asynchronous function with retry behavior.
+
+    Raises:
+        Exception:
+            Re-raises the last caught exception if all retry attempts fail.
+    """
+
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            _tries = tries
+            _delay = delay
+
+            while _tries > 0:
+                try:
+                    return await func(*args, **kwargs)
+
+                except exceptions as exc:
+                    _tries -= 1
+
+                    if on_retry:
+                        await on_retry(tries - _tries, _delay, exc)
+
+                    if _tries == 0:
+                        raise
+
+                    await asyncio.sleep(_delay)
+
+                    # backoff + jitter
+                    j_min, j_max = jitter
+                    j = random.uniform(j_min, j_max)
+                    _delay = min(max_delay, _delay * backoff + j * _delay)
+
+        return wrapper
+
+    return decorator
