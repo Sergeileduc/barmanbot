@@ -1,3 +1,6 @@
+![Ruff](https://img.shields.io/badge/style-ruff-0a7bff?logo=ruff&logoColor=white)
+![Ruff CI](https://github.com/Sergeileduc/barmanbot/actions/workflows/ruff.yml/badge.svg)
+
 # barmanbot
 
 Rename .env.public in .env
