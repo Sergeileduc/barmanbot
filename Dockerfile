@@ -8,10 +8,16 @@ WORKDIR /app
 
 # ÉTAPE X: Installation de wkhtmltopdf (et autres trucs)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl gnupg wkhtmltopdf \
-    libxrender1 libfontconfig1 libnss3 libxss1 libasound2 libatk1.0-0 \
-    libatk-bridge2.0-0 libcups2 libdrm2 libgbm1 libxkbcommon0 libgtk-3-0 libglib2.0-0 \
     git \
+    wkhtmltopdf \
+    libxrender1 \
+    libxext6 \
+    libfontconfig1 \
+    libfreetype6 \
+    libx11-6 \
+    fontconfig \
+    fonts-dejavu-core \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # ÉTAPE X: Installation des dépendances Python
