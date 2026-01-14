@@ -32,7 +32,6 @@ dependencies = [
     # "requests_html",
     # "lxml_html_clean",
     "google-api-python-client",
-    "python-web-tools-sl @ git+https://github.com/Sergeileduc/python-web-tools.git",
     "lemonde-sl @ git+https://github.com/Sergeileduc/lemonde-sl.git",
 ]
 
@@ -46,11 +45,11 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-# [project.urls]
-# Homepage = "https://github.com/your/repo"
+[project.urls]
+Homepage = "https://github.com/Sergeileduc/barmanbot"
 # Documentation = "https://github.com/your/repo/docs"
-# Source = "https://github.com/your/repo"
-# Issues = "https://github.com/your/repo/issues"
+Source = "https://github.com/Sergeileduc/barmanbot"
+Issues = "https://github.com/Sergeileduc/barmanbot/issues"
 
 # ---------------------------------------------------------------------------
 
