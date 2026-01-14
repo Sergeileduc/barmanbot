@@ -24,11 +24,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # logger.addHandler(logging.StreamHandler())
 
-LOGIN_URL = "https://secure.lemonde.fr/sfuser/connexion"
-
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",  # noqa: E501
-}
 
 # Retry
 TRIES = 3
@@ -225,7 +220,6 @@ if __name__ == "__main__":
     # Parse a .env file and then load all the variables found as environment variables.
     load_dotenv()
 
-    logging.basicConfig(level=logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
 
     # URL = "https://www.lemonde.fr/international/article/2024/10/03/face-a-l-iran-la-france-se-range-derriere-israel_6342763_3210.html"
