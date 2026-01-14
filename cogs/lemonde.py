@@ -15,11 +15,6 @@ from lemonde_sl import LeMondeAsync, MyArticle
 from utils.base_cog import BaseSlashCog
 from utils.decorators import dev_command
 
-# from utils.tools import to_bool
-# from utils.discord_types import LiteralBool
-
-# from reretry import retry
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 # logger.addHandler(logging.StreamHandler())

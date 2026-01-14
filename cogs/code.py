@@ -1,5 +1,8 @@
 #!/usr/bin/python3
-"""Miscs cog."""
+"""Cog for posting markdown formated code.
+
+You can post code as if you were doing ```python <YOUR CODE> ```
+"""
 
 import logging
 
