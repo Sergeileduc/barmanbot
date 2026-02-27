@@ -17,7 +17,7 @@ PREFIX = "!"
 
 # Parse a .env file and then load all the variables found as environment variables.
 load_dotenv()
-TOKEN: str = os.getenv("BARMAN_DISCORD_TOKEN")
+TOKEN = os.getenv("BARMAN_DISCORD_TOKEN")
 DEV_MODE = os.getenv("DEV_MODE", "").strip().lower() in ("1", "true", "yes", "on")
 DEV_GUILD_ID = int(os.getenv("DEV_GUILD_ID", "0"))
 
@@ -81,8 +81,8 @@ cogs_ext_list = [
 async def on_ready():
     """Log in Discord."""
     logging.info("Logged in as")
-    logging.info(bot.user.name)
-    logging.info(bot.user.id)
+    logging.info(bot.user.name) # type: ignore
+    logging.info(bot.user.id) # type: ignore
     await bot.tree.sync()
 
 
@@ -111,4 +111,8 @@ if __name__ == "__main__":
     if platform.system() == "Windows":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     logging.info("New bot with discord.py version %s", discord.__version__)
-    bot.run(TOKEN)
+    if TOKEN:
+        bot.run(TOKEN)
+    else:
+        logging.info("Please provide a token in .env or in your secret varenvs\n"
+                     "exepected name is BARMAN_DISCORD_TOKEN")

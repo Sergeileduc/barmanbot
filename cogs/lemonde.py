@@ -76,8 +76,8 @@ JITTER = (0, 1)
 #             dark=dark_mode,
 #         )
 
-async def get_article(url: str) -> list[MyArticle]:
 
+async def get_article(url: str) -> list[MyArticle]:
     # Load environment variables (idempotent)
     load_dotenv()
 
@@ -168,7 +168,9 @@ class LeMonde(commands.Cog):
             f"📄 Article: {url}"
         )
 
-        msg_wait: discord.Message = await interaction.followup.send("⏳ Traitement en cours…")  # type; ignore[func-returns-value]  # noqa: E501
+        msg_wait: discord.Message = await interaction.followup.send(
+            "⏳ Traitement en cours…"
+        )  # type; ignore[func-returns-value]  # noqa: E501
 
         # --- APPEL AVEC RETRY ---
         try:

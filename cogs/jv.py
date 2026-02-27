@@ -1,12 +1,16 @@
 #!/usr/bin/python3
 """JV cog."""
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import logging
 import re
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 from datetime import date, timedelta
+from typing import TYPE_CHECKING
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
@@ -15,7 +19,11 @@ from discord import ButtonStyle, Embed, Interaction
 from discord.ext import commands
 from discord.ui import Button, View
 
-from utils.tools import get_soup_hack
+from utils.tools import get_soup_hack, text_or_none
+
+if TYPE_CHECKING:
+    from bs4.element import AttributeValueList
+    from discord.ext.commands import Bot, Context
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +38,7 @@ MONTH = timedelta(days=31)
 QUARTER = timedelta(days=91)
 
 
+@dataclass
 class NewGame:
     """Represents a video game with metadata such as name, release date, platforms, and URL.
 
@@ -38,48 +47,35 @@ class NewGame:
     to a `datetime.date` object. If parsing fails, a default placeholder date is used.
     """
 
-    def __init__(self, name: str, release: str, platforms: str, part_url: str) -> None:
-        """Initializes a new game instance.
+    name: str
+    release: str | None
+    platforms: str
+    part_url: str | None
 
-        Args:
-            name (str): The name of the game.
-            release (str): The raw release string, typically like 'Sortie: 12 décembre 2023'.
-            platforms (str): The platforms the game is available on.
-            part_url (str): The partial URL path to be joined with the base site.
-        """
+    url: str = field(init=False)
+    date: date = field(init=False)
 
-        self.name = name
-        self.release = release
-        self.platforms = platforms
-        self.url = urljoin("https://www.jeuxvideo.com", part_url)
-        self.date = self._parse_release_date(release)
+    def __post_init__(self) -> None:
+        self.url = urljoin("https://www.jeuxvideo.com", self.part_url)
+        self.date = self._parse_release_date(self.release)
 
     @staticmethod
     def _parse_release_date(release: str) -> date:
-        """Parses a release string into a date object.
-
-        Removes the 'Sortie: ' prefix from the release string and attempts to
-        convert the remaining text into a `datetime.date` object using `ddp.get_date_data`.
-
-        If parsing fails due to missing attributes, returns a fallback date far
-        in the future (January 1st, 3000).
-
-        Args:
-            release (str): A release string, typically formatted like
-                'Sortie: 12 décembre 2023'.
-
-        Returns:
-            date: The parsed release date, or a default placeholder date.
-        """
-
         try:
             date_str = re.sub("Sortie: ", "", release)
-            return ddp.get_date_data(date_str).date_obj.date()
+            return ddp.get_date_data(date_str).date_obj.date()  # type: ignore
         except AttributeError:
             return date(3000, 1, 1)
 
     def __str__(self) -> str:
-        return f"{self.name}\n{self.release}\n{self.platforms}\n{self.url}\n{self.date}\n----------"
+        return (
+            f"{self.name}\n"
+            f"{self.release}\n"
+            f"{self.platforms}\n"
+            f"{self.url}\n"
+            f"{self.date}\n"
+            "----------"
+        )
 
 
 class TimeButton(Button):
@@ -91,10 +87,10 @@ class TimeButton(Button):
         self.delta = delta
         self.title = embedtitle
 
-    async def callback(self, interaction: Interaction):
+    async def callback(self, interaction: Interaction) -> None:
         # await interaction.response.defer(ephemeral=False)
 
-        platform = self.view.platform
+        platform: str = self.view.platform if self.view else ""
         one_platform = platform != "Toutes"
 
         # change style to green when clicked
@@ -132,7 +128,7 @@ class PlatformButton(Button):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    async def callback(self, interaction: Interaction):
+    async def callback(self, interaction: Interaction) -> None:
         # await interraction.response.defer()
         self.view.platform = self.label
         # change style to green when clicked
@@ -140,10 +136,10 @@ class PlatformButton(Button):
         await interaction.response.edit_message(view=self.view)
 
 
-def _unbloat_title(title: Tag):
+def _unbloat_title(title: Tag | None) -> None:
     with contextlib.suppress(AttributeError):
-        em = title.find("em")
-        em.decompose()  # remove some bloats
+        if em := title.find("em"):
+            em.decompose()  # remove some bloats
 
 
 # def find_next_page(soup: BeautifulSoup):
@@ -167,7 +163,7 @@ def _unbloat_title(title: Tag):
 #     return found, url
 
 
-def generate_url(month: int, year: int, platform=None) -> str:
+def generate_url(month: int, year: int, platform: str = "Toutes") -> str | None:
     """Generates a jeuxvideo.com release calendar URL for a given month, year, and platform.
 
     Converts the numeric month into its French name and builds the appropriate URL
@@ -181,7 +177,7 @@ def generate_url(month: int, year: int, platform=None) -> str:
         - "Toutes" (all platforms)
 
     Args:
-        month (int): Month number (1–12).
+        month (int): Month number (1-12).
         year (int): Year of the release calendar.
         platform (str, optional): Target platform. Defaults to None.
 
@@ -218,9 +214,10 @@ def generate_url(month: int, year: int, platform=None) -> str:
         return f"https://www.jeuxvideo.com/jeux/sorties/machine-32/annee-{year}/mois-{month}/"
     elif platform == "Toutes":
         return f"https://www.jeuxvideo.com/jeux/sorties/annee-{year}/mois-{month}/"
+    return None
 
 
-def next_month(month: int, year: int):
+def next_month(month: int, year: int) -> tuple[int, int]:
     """Return a tuple of month and year for next month.
 
     Args:
@@ -243,7 +240,7 @@ def _get_platform(tag: Tag) -> str:
         str: the platform the game will be available
     """
     try:
-        tmp = tag.select_one("div.cardGameList__gamePlatforms").get_text(strip=True)
+        tmp = text_or_none(tag.select_one("div.cardGameList__gamePlatforms"))
         platform = f"Plateformes :\t {tmp}"
     except AttributeError:
         platform = "no platform"
@@ -265,7 +262,7 @@ def _get_platform(tag: Tag) -> str:
 #     return None
 
 
-def _extract_game_href(html: Tag) -> str | None:
+def _extract_game_href(html: Tag) -> str | AttributeValueList | None:
     """get the partial URL of a video game (in the div)
 
     Args:
@@ -290,22 +287,29 @@ async def scrape_page(soup: BeautifulSoup) -> list[NewGame]:
         list[NewGame]: list of games for the page
     """
 
-    releases = []
+    releases: list[NewGame] = []
     try:
         list_of_new_games = soup.select("div[class*='gameMetadata']")
     except AttributeError:
         return releases
 
     for sortie in list_of_new_games:
+        # TITLE
         title_tag = sortie.select_one("a[class*='gameTitleLink']")
+        if not title_tag:
+            continue
         _unbloat_title(title_tag)
-        title = title_tag.text
-        _date = sortie.select_one("span[class*='releaseDate']").text
+        title = title_tag.text if title_tag else ""
+        # RELEASE / DATE
+        _date = text_or_none(sortie.select_one("span[class*='releaseDate']"))
+        # PLATFORM
         platform = _get_platform(sortie)
+        # PARTIAL URL
         try:
             part = _extract_game_href(sortie)
         except AttributeError:
             part = None
+        # append NEWGAME
         releases.append(NewGame(name=title, release=_date, platforms=platform, part_url=part))
     return releases
 
@@ -323,7 +327,7 @@ async def scrape_all_pages(
     Returns:
         List: Une liste contenant tous les éléments extraits de toutes les pages.
     """  # noqa: E501
-    current_url = start_url
+    current_url: str | None = start_url
     visited = set()
     all_results = []
 
@@ -332,13 +336,13 @@ async def scrape_all_pages(
         logger.info(f"Scraping {current_url}")
         soup = await get_soup_hack(current_url)
 
-        page_results = await process_page_callback(soup)
+        page_results = await process_page_callback(soup) if soup else None
         if isinstance(page_results, list):
             all_results.extend(page_results)
         else:
             logger.info("⚠️ La fonction de traitement n'a pas retourné une liste.")
 
-        next_link = soup.select_one(".pagination__button--next")
+        next_link = soup.select_one(".pagination__button--next") if soup else None
         if next_link and "href" in next_link.attrs:
             current_url = urljoin(current_url, next_link["href"])
         else:
@@ -347,19 +351,19 @@ async def scrape_all_pages(
     return all_results
 
 
-async def fetch_month(url) -> list[NewGame]:
+async def fetch_month(url: str) -> list[NewGame]:
     """Fetch all games in a month, even if there are several pages."""
     logger.debug("fetch_month url : %s", url)
     return await scrape_all_pages(start_url=url, process_page_callback=scrape_page)
 
 
-async def fetch_time_delta(delta: timedelta, platform: str = None):
+async def fetch_time_delta(delta: timedelta, platform: str = "Toutes") -> list[NewGame]:
     """Fetch games in a time delta relative to today(one week, one month, etc...)"""
     today = date.today()
     int_month: int = today.month
     int_year: int = today.year
 
-    url: str = generate_url(today.month, today.year, platform=platform)
+    url = generate_url(today.month, today.year, platform=platform)
     logger.debug("fetch_time_delta url : %s", url)
     games = await fetch_month(url)
     # next month
@@ -372,11 +376,11 @@ async def fetch_time_delta(delta: timedelta, platform: str = None):
 class JV(commands.Cog):
     """Fetch Video games release date."""
 
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: Bot):
         self.bot = bot
 
     @commands.hybrid_command()
-    async def sorties(self, ctx: commands.Context):
+    async def sorties(self, ctx: Context) -> None:
         """Permet de voir les prochaines sorties."""
         await ctx.defer(ephemeral=False)
 

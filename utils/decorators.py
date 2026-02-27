@@ -3,8 +3,12 @@ import os
 import random
 from collections.abc import Awaitable, Callable
 from functools import wraps  # noqa: F401
+from typing import ParamSpec, TypeVar
 
 from discord import Object, app_commands
+
+P = ParamSpec("P")
+T = TypeVar("T")
 
 DEV_MODE = os.getenv("DEV_MODE", "").strip().lower() in ("1", "true", "yes", "on")
 DEV_GUILD_ID = int(os.getenv("DEV_GUILD_ID", "0"))

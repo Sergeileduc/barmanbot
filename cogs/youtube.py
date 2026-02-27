@@ -4,14 +4,19 @@
 # See instructions for running these code samples locally:
 # https://developers.google.com/explorer-help/guides/code_samples#python
 
+from __future__ import annotations
+
 import html
 import logging
 import os
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import discord
 import googleapiclient.discovery
 from discord.ext import commands
+
+if TYPE_CHECKING:
+    from discord.ext.commands import Context
 
 logger = logging.getLogger(__name__)
 
@@ -93,23 +98,24 @@ def search_youtube(user_input: str, number: int) -> list[Result]:
     return out
 
 
-def youtube_top_link(user_input: str) -> TitleURL:
+def youtube_top_link(user_input: str) -> TitleURL | None:
     """Return title and url of 1st Youtube search.
 
     Args:
         user_input (str): user search on Youtube
 
     Returns:
-        TitleURL: title, url
+        TitleURL: title, url or None
 
     """
     results_list = search_youtube(user_input, number=1)
     try:
         result: Result = results_list[0]
         url = get_youtube_url(result)
-        return result.title, url
+        return TitleURL(result.title, url)
     except IndexError:
         logger.warning(f"No results found for '{user_input}'")
+        return None
 
 
 def get_youtube_url(result: Result) -> str:
@@ -120,7 +126,7 @@ def get_youtube_url(result: Result) -> str:
         return f"https://www.youtube.com/playlist?list={result.id_}"
     if result.type_ == "video":
         return f"https://www.youtube.com/watch?v={result.id_}"
-    return None
+    return ""
 
 
 class Youtube(commands.Cog):
@@ -132,7 +138,7 @@ class Youtube(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command()
-    async def youtube(self, ctx, *, query: str) -> None:
+    async def youtube(self, ctx: Context, *, query: str) -> None:
         """Send first Youtube search result.
 
         Args:
@@ -148,7 +154,7 @@ class Youtube(commands.Cog):
         await link.delete(delay=None)
 
     @commands.hybrid_command()
-    async def youtubelist(self, ctx, num: int, *, query: str) -> None:
+    async def youtubelist(self, ctx: Context, num: int, *, query: str) -> None:
         """Send <n> Youtube search results.
 
         Args:
@@ -197,6 +203,6 @@ class Youtube(commands.Cog):
             await ctx.message.delete(delay=2)
 
 
-async def setup(bot) -> None:
+async def setup(bot):
     await bot.add_cog(Youtube(bot))
     logger.info("Youtube cog added")

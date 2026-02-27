@@ -12,6 +12,8 @@ from invoke.tasks import task
 
 # mypy: ignore-errors
 
+PROJECT = "barmanbot"
+
 # TASKS------------------------------------------------------------------------
 
 
@@ -159,10 +161,24 @@ def doc(c):
     webbrowser.open(path.resolve().as_uri())
 
 
+# @task
+# def dockerrun(c):
+#     """Run docker"""
+#     c.run("docker run --rm -it -v ${PWD}/.env:/app/.env barmanbot", echo=True)
+
+
+@task
+def dockerbuild(c):
+    """Build docker."""
+    c.run(f"docker build -t {PROJECT} .", echo=True)
+
+
 @task
 def dockerrun(c):
-    """Run docker"""
-    c.run("docker run --rm -it -v ${PWD}/.env:/app/.env barmanbot", echo=True)
+    """Run docker."""
+    # command = f'docker run --rm -v "$(Get-Location):/app" --env-file .env {PROJECT}'
+    cwd = os.getcwd().replace("\\", "/")  # Docker aime les slashs
+    c.run(f'docker run --rm -v "{cwd}:/app" --env-file .env {PROJECT}', echo=True)
 
 
 # UTILS -----------------------------------------------------------------------

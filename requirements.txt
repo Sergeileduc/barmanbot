@@ -1,11 +1,11 @@
-discord.py
-python-dotenv>=1
-# beautifulsoup4
-pdfkit
-# aiohttp
-google-api-python-client
-dateparser
-# plus besoin de requests-htmlc (Playwright viré)
-# -e "C:\Users\serge\Dev\Packages\Python\python-web-tools"
-git+https://github.com/Sergeileduc/lemonde-sl.git
-# playwright
+# discord.py
+# python-dotenv>=1
+# # beautifulsoup4
+# pdfkit
+# # aiohttp
+# google-api-python-client
+# dateparser
+# # plus besoin de requests-htmlc (Playwright viré)
+# # -e "C:\Users\serge\Dev\Packages\Python\python-web-tools"
+# git+https://github.com/Sergeileduc/lemonde-sl.git
+# # playwright

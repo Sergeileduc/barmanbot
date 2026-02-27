@@ -8,7 +8,7 @@ allow-direct-references = true
 
 [project]
 name = "barmanbot"
-version = "1.0.0"
+version = "1.0.1"
 description = "Just a discord bot"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -25,12 +25,6 @@ dependencies = [
     "discord",
     "dotenv",
     "rich",
-    # "httpx",
-    # "selectolax",
-    "pdfkit",
-    # "playwright",
-    # "requests_html",
-    # "lxml_html_clean",
     "google-api-python-client",
     "lemonde-sl @ git+https://github.com/Sergeileduc/lemonde-sl.git@v2.2.0",
 ]

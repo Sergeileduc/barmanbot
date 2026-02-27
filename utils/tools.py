@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from playwright.async_api import TimeoutError, async_playwright
 from requests_html import AsyncHTMLSession
 
@@ -42,7 +42,12 @@ def to_bool(value: str, strict: bool = True) -> bool:
     return False
 
 
-def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+def text_or_none(tag: Tag | None) -> str | None:
+    """Safely returns a stripped text from tag (Tag | None)."""
+    return tag.get_text(strip=True) if tag else None
+
+
+def setup_logger(name: str, level: int | str = logging.INFO) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
@@ -102,10 +107,10 @@ async def fetch(url: str) -> str:
 
         html = await page.content()
         await browser.close()
-        return html
+        return html  # type: ignore
 
 
-async def get_soup_hack(url: str) -> BeautifulSoup:
+async def get_soup_hack(url: str) -> BeautifulSoup | None:
     """Fetch the site URL using playwright and return bs4 soup.
 
     Args:
@@ -128,6 +133,7 @@ if __name__ == "__main__":
         url = "https://www.jeuxvideo.com/jeux/sorties/machine-10/annee-2025/mois-10/"
         # url = "https://bot.sannysoft.com/"
         soup = await get_soup_hack(url)
-        print(soup.prettify())
+        if soup:
+            print(soup.prettify())
 
     asyncio.run(main())

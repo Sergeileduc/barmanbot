@@ -18,7 +18,7 @@ class CodeModal(ui.Modal, title="My code modal"):
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         await interaction.response.send_message(
-            content=f"# Code {self.lang} :\n```{self.lang}\n{self.answer}```"
+            content=f"# Code {self.lang} :\n```{self.lang}\n{self.answer}```" # type: ignore
         )
 
 
@@ -41,9 +41,9 @@ class Code(commands.Cog):
         self,
         interaction: discord.Interaction,
         choices: app_commands.Choice[str],
-    ):
+    ) -> None:
         codemodal = CodeModal(title="Entrez votre code")
-        codemodal.lang = choices.value
+        codemodal.lang = choices.value # pyright: ignore[reportAttributeAccessIssue]
         await interaction.response.send_modal(codemodal)
 
 
