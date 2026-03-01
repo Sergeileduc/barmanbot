@@ -23,10 +23,10 @@ dependencies = [
     # "bs4",
     "dateparser",
     "discord.py>=2.7.0",
-    "dotenv",
+    "python-dotenv",
     "rich",
     "google-api-python-client",
-    "lemonde-sl @ git+https://github.com/Sergeileduc/lemonde-sl.git@v2.2.1",
+    "lemonde-sl @ git+https://github.com/Sergeileduc/lemonde-sl.git@v2.2.1-pdfkit",
 ]
 
 # Classifiers PyPI (bonne pratique)
