@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 """JV cog."""
 
 from __future__ import annotations

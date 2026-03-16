@@ -5,13 +5,12 @@ import logging
 import os
 
 # from typing import Literal
-import discord
-from discord import Interaction, app_commands  # noqa: F401
+from discord import File, Interaction, Message, app_commands  # noqa: F401
 from discord.ext import commands  # noqa: F401
 from dotenv import load_dotenv
 from lemonde_sl import LeMondeAsync, MyArticle
 
-from utils.decorators import async_retry, dev_command
+from utils.decorators import async_retry
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -83,16 +82,19 @@ async def get_article(url: str) -> list[MyArticle]:
 
     EMAIL = os.getenv("LM_SL_EMAIL")
     PASSWORD = os.getenv("LM_SL_PASSWD")
+    MAX_IMGS: int = int(os.getenv("LM_SL_MAX_IMGS"))
+    logger.info("get_article called with url=%s and max imgs=%d", url, MAX_IMGS)
 
     if not EMAIL or not PASSWORD:
         raise RuntimeError("Missing LM_SL_EMAIL or LM_SL_PASSWD in environment")
-
     async with LeMondeAsync() as lm:
-        return await lm.fetch_all_pdf(
+        my_pdf_list: list[MyArticle] = await lm.fetch_all_pdf(
             url=url,
             email=EMAIL,
             password=PASSWORD,
+            max_img=MAX_IMGS,
         )
+    return my_pdf_list
 
 
 class LeMonde(commands.Cog):
@@ -101,14 +103,14 @@ class LeMonde(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @dev_command(name="lemonde", description="Télécharge un article du Monde")
+    @app_commands.command(name="lemonde", description="Télécharge un article du Monde")
     @app_commands.describe(
         url="URL de l'article à télécharger",
         # mode="Choisir mobile et/ou dark theme",
     )
     async def lemonde(
         self,
-        interaction: discord.Interaction,
+        interaction: Interaction,
         url: str,
         # mode: Literal[
         #     "Normal Clair", "Normal Dark", "Mobile Clair", "Mobile Dark"
@@ -157,20 +159,14 @@ class LeMonde(commands.Cog):
 
         await interaction.response.defer(ephemeral=False)
 
-        logger.info(
-            # f"Commande /lemonde appelée avec url={url}, mobile={mobile}, dark_mode={dark_mode}"
-            # )
-            f"Commande /lemonde appelée avec url={url}"
-        )
+        logger.info("Commande /lemonde appelée avec url=%s", url)
 
         await interaction.followup.send(
             # f"📄 Article: {url}\n📱 Mobile: {mobile}\n🌙 Mode sombre: {dark_mode}"
             f"📄 Article: {url}"
         )
 
-        msg_wait: discord.Message = await interaction.followup.send(
-            "⏳ Traitement en cours…"
-        )  # type; ignore[func-returns-value]  # noqa: E501
+        msg_wait: Message = await interaction.followup.send("⏳ Traitement en cours…")  # type: ignore[func-returns-value,assignment]  # noqa: E501
 
         # --- APPEL AVEC RETRY ---
         try:
@@ -189,7 +185,7 @@ class LeMonde(commands.Cog):
 
         # --- ENVOI DU PDF ---
         try:
-            paths = [discord.File(article.path) for article in articles]
+            paths = [File(article.path) for article in articles]  # File is discord.File
 
             await interaction.followup.send(files=paths)
             for my_article in articles:
@@ -217,7 +213,7 @@ async def setup(bot):
         None
     """
     await bot.add_cog(LeMonde(bot))
-    logger.info("lemonde cog added")
+    logger.info("⚙️ Cog LeMonde added")
 
 
 # TESTING

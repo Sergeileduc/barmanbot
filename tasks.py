@@ -1,4 +1,5 @@
 import contextlib
+import json
 import os
 import shutil
 import subprocess
@@ -161,6 +162,9 @@ def doc(c):
     webbrowser.open(path.resolve().as_uri())
 
 
+#####################################################
+# Docker
+###############
 # @task
 # def dockerrun(c):
 #     """Run docker"""
@@ -179,6 +183,35 @@ def dockerrun(c):
     # command = f'docker run --rm -v "$(Get-Location):/app" --env-file .env {PROJECT}'
     cwd = os.getcwd().replace("\\", "/")  # Docker aime les slashs
     c.run(f'docker run --rm -v "{cwd}:/app" --env-file .env {PROJECT}', echo=True)
+
+
+#####################################################
+# Fly
+##################
+
+
+def get_machine_id():
+    data = json.loads(
+        __import__("subprocess").check_output(["fly", "machines", "list", "--json"]).decode()
+    )
+    return data[0]["id"]
+
+
+@task
+def flystop(ctx):
+    mid = get_machine_id()
+    ctx.run(f"fly machine stop {mid}", echo=True)
+
+
+@task
+def flystart(ctx):
+    mid = get_machine_id()
+    ctx.run(f"fly machine start {mid}", echo=True)
+
+
+@task
+def flydeploy(ctx):
+    ctx.run("fly deploy", echo=True)
 
 
 # UTILS -----------------------------------------------------------------------

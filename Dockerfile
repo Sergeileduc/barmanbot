@@ -8,33 +8,33 @@ WORKDIR /app
 
 # 1- Dépendances système pour WeasyPrint
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # # FOR WEASYPRINT
-    # libcairo2 \
-    # pango1.0-tools \
-    # libpango-1.0-0 \
-    # libpangocairo-1.0-0 \
-    # libgdk-pixbuf2.0-0 \
-    # libffi8 \
-    # libxml2 \
-    # libxslt1.1 \
-    # libjpeg62-turbo \
-    # libpng16-16 \
-    # libfreetype6 \
-    # libharfbuzz0b \
-    # git \
-    # && rm -rf /var/lib/apt/lists/*
-    # FOR PDFKIT
-    git \
-    wkhtmltopdf \
-    libxrender1 \
-    libxext6 \
-    libfontconfig1 \
+    # FOR WEASYPRINT
+    libcairo2 \
+    pango1.0-tools \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libffi8 \
+    libxml2 \
+    libxslt1.1 \
+    libjpeg62-turbo \
+    libpng16-16 \
     libfreetype6 \
-    libx11-6 \
-    fontconfig \
-    fonts-dejavu-core \
-    && apt-get clean \
+    libharfbuzz0b \
+    git \
     && rm -rf /var/lib/apt/lists/*
+# # FOR PDFKIT
+# git \
+# wkhtmltopdf \
+# libxrender1 \
+# libxext6 \
+# libfontconfig1 \
+    # libfreetype6 \
+# libx11-6 \
+# fontconfig \
+# fonts-dejavu-core \
+# && apt-get clean \
+# && rm -rf /var/lib/apt/lists/*
 
 # 2- Installation des dépendances Python
 COPY pyproject.toml /app/

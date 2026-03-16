@@ -1,9 +1,10 @@
 import asyncio
 import logging
 
-from bs4 import BeautifulSoup, Tag
-from playwright.async_api import TimeoutError, async_playwright
-from requests_html import AsyncHTMLSession
+from bs4 import Tag
+
+# from playwright.async_api import TimeoutError, async_playwright
+# from requests_html import AsyncHTMLSession
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",  # noqa: E501
@@ -62,78 +63,79 @@ def setup_logger(name: str, level: int | str = logging.INFO) -> logging.Logger:
     return logger
 
 
-async def get_soup(url: str) -> BeautifulSoup:
-    asession = AsyncHTMLSession()
-    r = await asession.get(url, headers=headers)
-    # await r.html.arender()
-    await r.html.arender(timeout=20, sleep=2)
-    await asession.close()
-    soup = BeautifulSoup(r.html.html, "html.parser")
-    return soup
+# async def get_soup(url: str) -> BeautifulSoup:
+#     asession = AsyncHTMLSession()
+#     r = await asession.get(url, headers=headers)
+#     # await r.html.arender()
+#     await r.html.arender(timeout=20, sleep=2)
+#     await asession.close()
+#     soup = BeautifulSoup(r.html.html, "html.parser")
+#     return soup
 
 
-async def fetch(url: str) -> str:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True
-        )  # headless=True si tu veux rester invisible
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",  # noqa: E501
-            locale="fr-FR",
-        )
+# async def fetch(url: str) -> str:
+#     async with async_playwright() as p:
+#         browser = await p.chromium.launch(
+#             headless=True
+#         )  # headless=True si tu veux rester invisible
+#         context = await browser.new_context(
+#             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",  # noqa: E501
+#             locale="fr-FR",
+#         )
 
-        # Enlève le flag webdriver
-        await context.add_init_script(
-            """
-        Object.defineProperty(navigator, 'webdriver', {
-            get: () => undefined
-        });
-        """
-        )
+#         # Enlève le flag webdriver
+#         await context.add_init_script(
+#             """
+#         Object.defineProperty(navigator, 'webdriver', {
+#             get: () => undefined
+#         });
+#         """
+#         )
 
-        # Ajoute des headers réalistes
-        await context.set_extra_http_headers(
-            {"Accept-Language": "fr-FR,fr;q=0.9", "Referer": "https://www.google.com"}
-        )
+#         # Ajoute des headers réalistes
+#         await context.set_extra_http_headers(
+#             {"Accept-Language": "fr-FR,fr;q=0.9", "Referer": "https://www.google.com"}
+#         )
 
-        page = await context.new_page()
-        await page.goto(url, timeout=50000)  # 50s timeout
-        await page.wait_for_timeout(10000)  # sleep=10s pour laisser le JS s'exécuter
+#         page = await context.new_page()
+#         await page.goto(url, timeout=50000)  # 50s timeout
+#         await page.wait_for_timeout(10000)  # sleep=10s pour laisser le JS s'exécuter
 
-        # Tu peux aussi simuler un scroll ou un clic si nécessaire
-        await page.mouse.move(100, 100)
-        await page.keyboard.press("ArrowDown")
-        await page.wait_for_timeout(1000)
+#         # Tu peux aussi simuler un scroll ou un clic si nécessaire
+#         await page.mouse.move(100, 100)
+#         await page.keyboard.press("ArrowDown")
+#         await page.wait_for_timeout(1000)
 
-        html = await page.content()
-        await browser.close()
-        return html  # type: ignore
+#         html = await page.content()
+#         await browser.close()
+#         return html  # type: ignore
 
 
-async def get_soup_hack(url: str) -> BeautifulSoup | None:
-    """Fetch the site URL using playwright and return bs4 soup.
+# async def get_soup_hack(url: str) -> BeautifulSoup | None:
+#     """Fetch the site URL using playwright and return bs4 soup.
 
-    Args:
-        url (str): site to fetch
+#     Args:
+#         url (str): site to fetch
 
-    Returns:
-        BeautifulSoup: bs4 Soup of the page.
-    """
-    try:
-        html = await fetch(url)
-        return BeautifulSoup(html, "html.parser")
-    except TimeoutError:
-        print("Timeout Error")
-        return None
+#     Returns:
+#         BeautifulSoup: bs4 Soup of the page.
+#     """
+#     try:
+#         html = await fetch(url)
+#         return BeautifulSoup(html, "html.parser")
+#     except TimeoutError:
+#         print("Timeout Error")
+#         return None
 
 
 if __name__ == "__main__":
 
     async def main():
-        url = "https://www.jeuxvideo.com/jeux/sorties/machine-10/annee-2025/mois-10/"
+        # url = "https://www.jeuxvideo.com/jeux/sorties/machine-10/annee-2025/mois-10/"
         # url = "https://bot.sannysoft.com/"
-        soup = await get_soup_hack(url)
-        if soup:
-            print(soup.prettify())
+        # soup = await get_soup_hack(url)
+        # if soup:
+        #     print(soup.prettify())
+        pass
 
     asyncio.run(main())

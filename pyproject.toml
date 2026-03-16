@@ -8,7 +8,7 @@ allow-direct-references = true
 
 [project]
 name = "barmanbot"
-version = "1.0.1"
+version = "1.2.0"
 description = "Just a discord bot"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -26,7 +26,7 @@ dependencies = [
     "python-dotenv",
     "rich",
     "google-api-python-client",
-    "lemonde-sl @ git+https://github.com/Sergeileduc/lemonde-sl.git@v2.2.1-pdfkit",
+    "lemonde-sl @ git+https://github.com/Sergeileduc/lemonde-sl.git@v2.4.3-weasyprint",
 ]
 
 # Classifiers PyPI (bonne pratique)
