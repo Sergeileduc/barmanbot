@@ -1,34 +1,41 @@
 """Youtube cog."""
 
+
 # Sample Python code for youtube.search.list
 # See instructions for running these code samples locally:
 # https://developers.google.com/explorer-help/guides/code_samples#python
 
-from __future__ import annotations
-
 import html
 import logging
 import os
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 
 import discord
 import googleapiclient.discovery
 from discord.ext import commands
 
-if TYPE_CHECKING:
-    from discord.ext.commands import Context
-
 logger = logging.getLogger(__name__)
 
 TOKEN_YOUTUBE = os.getenv("TOKEN_YOUTUBE")
 
-TitleURL = tuple[str, str]
+
+class TitleURL(NamedTuple):
+    title: str
+    url: str
 
 
 class Result(NamedTuple):  # pylint: disable=missing-class-docstring
     title: str
     type_: str
     id_: str
+
+
+class YoutubeError(Exception):
+    """Base class for YouTube-related errors."""
+
+
+class NoYoutubeResults(YoutubeError):
+    """Raised when a YouTube search returns no results."""
 
 
 def string_is_int(string: str) -> bool:  # pragma: no cover
@@ -64,9 +71,9 @@ def search_youtube(user_input: str, number: int) -> list[Result]:
     )
 
     request = youtube.search().list(
-        part="snippet",
+        part="snippet",  # pylint: disable=no-member
         maxResults=number,
-        q=user_input,  # pylint: disable=no-member
+        q=user_input,
     )
     response = request.execute()
 
@@ -98,35 +105,45 @@ def search_youtube(user_input: str, number: int) -> list[Result]:
     return out
 
 
-def youtube_top_link(user_input: str) -> TitleURL | None:
+def youtube_top_link(user_input: str) -> TitleURL:
     """Return title and url of 1st Youtube search.
 
     Args:
         user_input (str): user search on Youtube
 
     Returns:
-        TitleURL: title, url or None
+        TitleURL: title, url
 
     """
-    results_list = search_youtube(user_input, number=1)
-    try:
-        result: Result = results_list[0]
-        url = get_youtube_url(result)
-        return TitleURL(result.title, url)
-    except IndexError:
-        logger.warning(f"No results found for '{user_input}'")
-        return None
+    results = search_youtube(user_input, number=1)
+    if not results:
+        raise NoYoutubeResults(user_input)
+
+    result = results[0]
+    url = get_youtube_url(result)
+    return TitleURL(title=result.title, url=url)
 
 
 def get_youtube_url(result: Result) -> str:
-    """Make youtube url of 'result' (video, playlist, or channel)."""
+    """Make youtube url of 'result' (video, playlist, or channel).
+
+    Args:
+        result (Result): result tuple
+
+    Raises:
+        YoutubeError: type of result is messy
+
+    Returns:
+        str: url
+    """
     if result.type_ == "channel":
         return f"https://www.youtube.com/channel/{result.id_}"
     if result.type_ == "playlist":
         return f"https://www.youtube.com/playlist?list={result.id_}"
     if result.type_ == "video":
         return f"https://www.youtube.com/watch?v={result.id_}"
-    return ""
+
+    raise YoutubeError(f"Unknown YouTube result type: {result.type_}")
 
 
 class Youtube(commands.Cog):
@@ -138,23 +155,28 @@ class Youtube(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command()
-    async def youtube(self, ctx: Context, *, query: str) -> None:
+    async def youtube(self, ctx, *, query: str) -> None:
         """Send first Youtube search result.
 
         Args:
             query (str): Search on youtube
         """
-        title, url = youtube_top_link(query.lower())
-        link = await ctx.send(content=f"{title}\n{url}")
+        try:
+            title, url = youtube_top_link(query.lower())
+        except NoYoutubeResults:
+            await ctx.send("Aucun résultat YouTube trouvé.")
+            return
+
+        link = await ctx.send(f"{title}\n{url}")
 
         def check(message):
             return message == ctx.message
 
         await self.bot.wait_for("message_delete", check=check, timeout=1200)
-        await link.delete(delay=None)
+        await link.delete()
 
     @commands.hybrid_command()
-    async def youtubelist(self, ctx: Context, num: int, *, query: str) -> None:
+    async def youtubelist(self, ctx, num: int, *, query: str) -> None:
         """Send <n> Youtube search results.
 
         Args:
@@ -165,15 +187,16 @@ class Youtube(commands.Cog):
         results = search_youtube(user_input=query, number=num)
         embed = discord.Embed(color=0xFF0000)
         embed.set_footer(
-            text='Tapez un nombre pour faire votre choix ou dites "cancel" pour annuler'
+            text="Tapez un nombre pour faire votre choix " 'ou dites "cancel" pour annuler'
         )
-        for res in results:
+        for i, res in enumerate(results, start=1):
             url = get_youtube_url(res)
             embed.add_field(
-                name=f"{results.index(res) + 1}.{res.type_}",
+                name=f"{i}.{res.type_}",
                 value=f"[{res.title}]({url})",
                 inline=False,
             )
+
         self_message = await ctx.send(embed=embed)
 
         def check(message):
@@ -205,4 +228,4 @@ class Youtube(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Youtube(bot))
-    logger.info("Youtube cog added")
+    logger.info("⚙️ Youtube cog added")
