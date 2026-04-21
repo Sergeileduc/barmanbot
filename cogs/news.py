@@ -38,9 +38,13 @@ class ActuRelay(commands.Cog):
         logger.info("ActuRelay prêt: %s -> %s", self.channel_bot, self.channel_human)
 
     @commands.Cog.listener()
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
         """Relay news to another channel, on any reaction."""
-        # On filtre le bon salon
+
+        # Guard clause channel_bot
+        if not self.channel_bot:
+            return
+        # Filter on proper channel
         if payload.channel_id != self.channel_bot.id:
             return
 
