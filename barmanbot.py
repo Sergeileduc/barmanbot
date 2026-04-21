@@ -68,6 +68,7 @@ bot = commands.Bot(
 )
 
 cogs_ext_list = [
+    "cogs.news",
     "cogs.misc",
     "cogs.lemonde",
     "cogs.code",
