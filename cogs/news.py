@@ -28,11 +28,11 @@ class ActuRelay(commands.Cog):
             return
 
         self.channel_bot = discord.utils.find(
-            lambda c: c.name.endswith("news-jv"), self.guild.text_channels
+            lambda c: c.name.endswith(ACTU_BOT_CHANNEL), self.guild.text_channels
         )
 
         self.channel_human = discord.utils.find(
-            lambda c: c.name.endswith("talk-jv"), self.guild.text_channels
+            lambda c: c.name.endswith(ACTU_JV), self.guild.text_channels
         )
 
         logger.info("ActuRelay prêt: %s -> %s", self.channel_bot, self.channel_human)
